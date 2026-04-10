@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import AuthHeader from "../components/AuthHeader";
+import LegalModal from "../components/LegalModal";
+import TermsContent from "../components/legal/TermsContent";
+import PrivacyContent from "../components/legal/PrivacyContent";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -20,6 +23,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
+  const [modalType, setModalType] = useState<"terms" | "privacy" | null>(null);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -207,13 +211,23 @@ export default function SignupPage() {
               />
               <span className="text-sm text-zinc-600">
                 I agree to the{" "}
-                <Link href="/terms" className="text-emerald-500 hover:underline">
-                  Terms
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-emerald-500 hover:underline">
-                  Privacy Policy
-                </Link>
+                <button
+  type="button"
+  onClick={() => setModalType("terms")}
+  className="text-emerald-500 hover:underline"
+>
+  Terms
+</button>
+
+and
+
+<button
+  type="button"
+  onClick={() => setModalType("privacy")}
+  className="text-emerald-500 hover:underline"
+>
+  Privacy Policy
+</button>
               </span>
             </div>
             {errors.agreed && (
@@ -243,7 +257,15 @@ export default function SignupPage() {
           </form>
         </div>
       </div>
-      
+      {modalType && (
+  <LegalModal
+    title={modalType === "terms" ? "Terms of Service" : "Privacy Policy"}
+    onClose={() => setModalType(null)}
+    content={
+      modalType === "terms" ? <TermsContent /> : <PrivacyContent />
+    }
+  />
+)}
     </main>
   );
 }

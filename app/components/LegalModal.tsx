@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 export default function LegalModal({
   title,
   content,
@@ -9,6 +11,14 @@ export default function LegalModal({
   content: React.ReactNode;
   onClose: () => void;
 }) {
+  // ✅ FIX: hook OUTSIDE return
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
 
@@ -19,10 +29,10 @@ export default function LegalModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white w-full max-w-2xl max-h-[80vh] rounded-2xl shadow-xl border border-zinc-200 overflow-hidden">
+      <div className="relative bg-white w-full max-w-2xl h-[85vh] rounded-2xl shadow-xl border border-zinc-200 flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 flex-shrink-0">
           <h2 className="text-lg font-semibold">{title}</h2>
           <button
             onClick={onClose}
@@ -32,10 +42,11 @@ export default function LegalModal({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto text-sm text-zinc-700 leading-relaxed">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
           {content}
         </div>
+
       </div>
     </div>
   );

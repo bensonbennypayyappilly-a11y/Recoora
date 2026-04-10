@@ -6,7 +6,7 @@ export async function GET() {
     response_type: "code",
     client_id: process.env.STRIPE_CLIENT_ID!,
     scope: "read_write",
-    redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/oauth/callback`
+    redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`
   });
 
   return NextResponse.redirect(

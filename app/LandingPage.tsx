@@ -232,7 +232,7 @@ export default function LandingPage() {
              <div className="flex items-center justify-center gap-4 mt-4 text-zinc-400 text-xs max-w-md mx-auto text-center">
   <span>✓ Read-only Stripe access</span>
   <span>✓ No billing permissions</span>
-  <span>✓ Setup in under 2 minutes</span>
+  <span>✓ Setup in under 5 minutes</span>
 </div>
 
           {/* Product Mockup */}

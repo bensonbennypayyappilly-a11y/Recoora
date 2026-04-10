@@ -22,6 +22,7 @@ export async function POST(req: Request) {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
+    console.log("🔥 event.account:", event.account);
   } catch (err) {
     console.error("❌ Signature verification failed.", err);
     return new NextResponse("Webhook Error", { status: 400 });
@@ -222,10 +223,12 @@ export async function POST(req: Request) {
   }
 
   /* ================= USER LOOKUP ================= */
-  const stripeAccountId =
-    event.account ||
-    process.env.NEXT_PUBLIC_STRIPE_ACCOUNT_ID ||
-    "default_account";
+  const stripeAccountId = event.account;
+
+if (!stripeAccountId) {
+  console.error("❌ Missing event.account — webhook not from connected account");
+  return NextResponse.json({ error: "No account context" });
+}
 
   const { data: user, error: userError } = await supabaseServer
     .from("users")

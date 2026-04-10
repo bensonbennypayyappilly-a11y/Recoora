@@ -1,86 +1,109 @@
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-white text-zinc-900 px-6 py-16">
-      <div className="max-w-3xl mx-auto space-y-8">
+    <div className="min-h-screen bg-white text-zinc-900 px-6 py-20">
+      <div className="max-w-4xl mx-auto">
 
-        <h1 className="text-3xl font-bold">Terms & Conditions</h1>
-        <p className="text-sm text-zinc-500">
-          Last updated: January 2026
-        </p>
-
-        <section>
-          <h2 className="text-xl font-semibold mb-2">1. Acceptance of Terms</h2>
-          <p>
-            By accessing or using Revenue Radar (“Service”), you agree to be bound
-            by these Terms. If you do not agree, do not use the Service.
+        <div className="mb-12">
+          <h1 className="text-4xl font-semibold tracking-tight">Terms of Service</h1>
+          <p className="text-sm text-zinc-500 mt-2">
+            Last updated: January 2026
           </p>
-        </section>
+        </div>
 
-        <section>
-          <h2 className="text-xl font-semibold mb-2">2. Description of Service</h2>
-          <p>
-            Revenue Radar provides automated revenue monitoring and alerting
-            services connected to third-party platforms including Stripe and Slack.
-            We do not process payments on your behalf.
-          </p>
-        </section>
+        <div className="space-y-10 text-[15px] leading-relaxed text-zinc-700">
 
-        <section>
-          <h2 className="text-xl font-semibold mb-2">3. Account Registration</h2>
-          <p>
-            You must provide accurate information during registration. You are
-            responsible for maintaining the confidentiality of your account.
-          </p>
-        </section>
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              Acceptance
+            </h2>
+            <p>
+              By using Recoora, you agree to these Terms. If you do not agree, do not use the Service.
+            </p>
+          </section>
 
-        <section>
-          <h2 className="text-xl font-semibold mb-2">4. Free Trial</h2>
-          <p>
-            Revenue Radar offers a 14-day free trial. We reserve the right to
-            restrict or deny trial access if duplicate or abusive activity is detected.
-          </p>
-        </section>
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              Service Description
+            </h2>
+            <p>
+              Recoora provides real-time monitoring of Stripe events and delivers alerts via Slack and dashboard.
+              We do not process payments or act as a financial intermediary.
+            </p>
+          </section>
 
-        <section>
-          <h2 className="text-xl font-semibold mb-2">5. Subscription & Billing</h2>
-          <p>
-            Paid subscriptions are billed monthly or annually via Stripe.
-            By subscribing, you authorize recurring charges.
-            You may cancel anytime. Cancellation becomes effective at the end
-            of your billing cycle.
-          </p>
-        </section>
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              User Responsibility
+            </h2>
+            <p>
+              You are responsible for your Stripe account, Slack setup, and actions taken based on alerts.
+            </p>
+          </section>
 
-        <section>
-          <h2 className="text-xl font-semibold mb-2">6. Third-Party Services</h2>
-          <p>
-            Our Service integrates with Stripe, Slack, and other third-party
-            providers. We are not responsible for their performance or policies.
-          </p>
-        </section>
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              Billing
+            </h2>
+            <p>
+              Subscriptions are billed via Stripe. All payments are non-refundable unless required by law.
+            </p>
+          </section>
 
-        <section>
-          <h2 className="text-xl font-semibold mb-2">7. Limitation of Liability</h2>
-          <p>
-            Revenue Radar is provided “as is.” We are not liable for lost revenue,
-            missed alerts, or business interruption.
-          </p>
-        </section>
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              Third-Party Dependencies
+            </h2>
+            <p>
+              The Service depends on Stripe and Slack. We are not liable for outages or failures from these services.
+            </p>
+          </section>
 
-        <section>
-          <h2 className="text-xl font-semibold mb-2">8. Termination</h2>
-          <p>
-            We may suspend or terminate accounts that violate these Terms.
-          </p>
-        </section>
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              No Guarantees
+            </h2>
+            <p>
+              We do not guarantee real-time delivery or accuracy of alerts. Delays or missed events may occur.
+            </p>
+          </section>
 
-        <section>
-          <h2 className="text-xl font-semibold mb-2">9. Contact</h2>
-          <p>
-            For legal inquiries, contact: support@revenueradar.io
-          </p>
-        </section>
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              Limitation of Liability
+            </h2>
+            <p>
+              Recoora is not liable for revenue loss, missed alerts, or business interruption under any circumstances.
+            </p>
+          </section>
 
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              Termination
+            </h2>
+            <p>
+              We may suspend or terminate accounts for misuse or violations.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              Governing Law
+            </h2>
+            <p>
+              These Terms are governed by applicable international laws.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">
+              Contact
+            </h2>
+            <p>
+              Legal inquiries: <span className="font-medium">recoora.ai@gmail.com</span>
+            </p>
+          </section>
+
+        </div>
       </div>
     </div>
   );

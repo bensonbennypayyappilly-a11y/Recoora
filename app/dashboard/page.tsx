@@ -33,6 +33,7 @@ export default function Dashboard() {
   const [visibleCount, setVisibleCount] = useState(10);
   const [atRiskCustomers, setAtRiskCustomers] = useState<AtRiskCustomer[]>([]);
   const stripeAccountIdRef = useRef<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const isPro = plan === "pro";
   const isTrialExpired =
@@ -48,7 +49,7 @@ export default function Dashboard() {
         window.location.href = "/login";
         return;
       }
-
+      setUserId(data.session.user.id);
       const { data: userData } = await supabase
         .from("users")
         .select("plan, trial_ends_at, stripe_account_id, slack_connected")
@@ -83,7 +84,7 @@ export default function Dashboard() {
         .select(
           "id, stripe_event_id, event_type, customer_email, amount, created_at, action_status, plan_name, attempt_count, failure_reason, customer_risk_level"
         )
-        .eq("stripe_account_id", acctId)
+        .eq("user_id", data.session.user.id)
         .is("deleted_at", null)
         .in("event_type", [
           "invoice.payment_failed",
@@ -100,7 +101,7 @@ export default function Dashboard() {
       const { data: allEvents } = await supabase
         .from("stripe_events")
         .select("event_type, amount")
-        .eq("stripe_account_id", acctId)
+        .eq("user_id", data.session.user.id)
         .gte("created_at", sinceDate.toISOString());
 
       let revenue = 0, failed = 0, lost = 0;
@@ -173,7 +174,7 @@ export default function Dashboard() {
 
   /* ── Realtime ── */
   useEffect(() => {
-    if (!stripeAccountId) return;
+  if (!stripeAccountId || !userId) return;
 
     console.log("📡 Subscribing to realtime for account:", stripeAccountId);
 
@@ -185,7 +186,7 @@ export default function Dashboard() {
           event: "INSERT",
           schema: "public",
           table: "stripe_events",
-          filter: `stripe_account_id=eq.${stripeAccountId}`,
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const inserted = payload.new as any;
@@ -253,7 +254,7 @@ if (
           event: "UPDATE",
           schema: "public",
           table: "stripe_events",
-          filter: `stripe_account_id=eq.${stripeAccountId}`,
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const updated = payload.new as any;
@@ -276,7 +277,7 @@ if (
           event: "DELETE",
           schema: "public",
           table: "stripe_events",
-          filter: `stripe_account_id=eq.${stripeAccountId}`,
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const deleted = payload.old as any;
@@ -292,7 +293,7 @@ if (
       console.log("📡 Unsubscribing realtime");
       supabase.removeChannel(channel);
     };
-  }, [stripeAccountId]);
+  }, [stripeAccountId, userId]);
 
   // Action required = failed + churn only (not success, not new checkout)
   const actionRequiredCount = alerts.filter(

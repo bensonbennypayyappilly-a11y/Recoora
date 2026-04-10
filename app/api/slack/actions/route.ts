@@ -89,12 +89,28 @@ export async function POST(req: Request) {
       console.error("❌ eventId is null or undefined after parsing. action.value:", action.value);
       return NextResponse.json({ ok: true, error: "missing_event_id" });
     }
+    const slackUserId = payload.user?.id;
+
+const { data: user } = await supabaseServer
+  .from("users")
+  .select("id, slack_access_token")
+  .eq("slack_team_id", payload.team.id)
+  .eq("slack_channel_id", payload.channel.id)
+  .eq("slack_connected", true)
+  .limit(1)
+  .maybeSingle();
+
+  if (!user) {
+  console.error("❌ No user found for Slack payload");
+  return NextResponse.json({ ok: true });
+}
 
     /* Step 2 — Fetch current DB row for this event */
     const { data: eventRow, error: fetchError } = await supabaseServer
       .from("stripe_events")
       .select("id, slack_message_ts, slack_channel_id, action_status")
       .eq("stripe_event_id", eventId)
+      .eq("user_id", user.id)
       .maybeSingle();
 
     if (fetchError) {
@@ -118,7 +134,8 @@ export async function POST(req: Request) {
     const { error: dbUpdateError } = await supabaseServer
       .from("stripe_events")
       .update({ action_status: "contacted_slack" })
-      .eq("stripe_event_id", eventId);
+      .eq("stripe_event_id", eventId)
+      .eq("user_id", user.id);
 
     if (dbUpdateError) {
       console.error("❌ DB update FAILED for eventId:", eventId, dbUpdateError);
@@ -146,11 +163,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, error: "missing_slack_refs" });
     }
 
-    if (!process.env.SLACK_BOT_TOKEN) {
-      console.error("❌ SLACK_BOT_TOKEN not set in environment");
-      return NextResponse.json({ ok: true, error: "missing_token" });
-    }
-
+    
     /* Step 5 — Build updated blocks
        Take the original message blocks from the Slack payload,
        remove the actions block (buttons), add "✅ Contacted" context */
@@ -184,7 +197,7 @@ export async function POST(req: Request) {
       const updateRes = await fetch("https://slack.com/api/chat.update", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}`,
+          Authorization: `Bearer ${user.slack_access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

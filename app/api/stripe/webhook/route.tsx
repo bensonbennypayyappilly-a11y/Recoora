@@ -251,9 +251,15 @@ if (!stripeAccountId) {
     data.parent?.subscription_details?.subscription ||
     null;
 
-  /* ================= DB INSERT ================= */
-  const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
-    user_id: user?.id,
+  /* ================= USER VALIDATION ================= */
+if (!user) {
+  console.error("❌ CRITICAL: No user found for stripe_account_id:", stripeAccountId);
+  return NextResponse.json({ error: "User not found" }, { status: 400 });
+}
+
+/* ================= DB INSERT ================= */
+const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
+  user_id: user.id, // ✅ NEVER optional
     stripe_event_id: event.id,
     stripe_account_id: stripeAccountId,
     event_type: eventType,
@@ -272,7 +278,11 @@ if (!stripeAccountId) {
     failure_reason: failureReason,
     customer_risk_level: customerRiskLevel,
     failure_code: failureCode,
-  });
+  },
+  {
+  onConflict: "stripe_event_id"
+});
+
 
   if (dbError) {
     console.error("❌ DB INSERT FAILED:", dbError);
@@ -280,12 +290,7 @@ if (!stripeAccountId) {
   }
   console.log("✅ DB insert successful:", event.id);
 
-  /* ================= SLACK GUARD ================= */
-  if (!user) {
-    console.warn("⚠️ No user found — skipping Slack. stripeAccountId:", stripeAccountId);
-    return NextResponse.json({ success: true, slack: "skipped_no_user" });
-  }
-  if (!user.slack_connected) {
+    if (!user.slack_connected) {
     console.warn("⚠️ Slack not connected for user:", user.id);
     return NextResponse.json({ success: true, slack: "skipped_not_connected" });
   }
@@ -293,11 +298,7 @@ if (!stripeAccountId) {
     console.warn("⚠️ No slack_channel_id for user:", user.id);
     return NextResponse.json({ success: true, slack: "skipped_no_channel" });
   }
-  if (!process.env.SLACK_BOT_TOKEN) {
-    console.error("❌ SLACK_BOT_TOKEN not set in environment");
-    return NextResponse.json({ success: true, slack: "skipped_no_token" });
-  }
-
+  
   /* ================= BLOCK BUILDERS ================= */
   const hasEmail = !!customerEmail;
   const emailLink = hasEmail
@@ -422,14 +423,18 @@ ${productLine}Amount: ${amountFormatted}
     "📤 slackPayload decision:",
     slackPayload ? slackPayload.text : "NULL — no payload built for " + eventType
   );
-
+  
+if (!user.slack_access_token) {
+  console.error("❌ Missing slack_access_token for user:", user.id);
+  return NextResponse.json({ success: true, slack: "missing_token" });
+}
   /* ================= SEND TO SLACK ================= */
   if (slackPayload) {
     try {
       const slackRes = await fetch("https://slack.com/api/chat.postMessage", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN}`,
+          Authorization: `Bearer ${user.slack_access_token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -457,7 +462,8 @@ ${productLine}Amount: ${amountFormatted}
             slack_message_ts: messageTs,
             slack_channel_id: user.slack_channel_id,
           })
-          .eq("stripe_event_id", event.id);
+         .eq("stripe_event_id", event.id)
+         .eq("user_id", user.id);
 
         if (tsUpdateError) {
           console.error("❌ Failed to save slack_message_ts to DB:", tsUpdateError);

@@ -33,6 +33,29 @@ export default function LoginPage() {
 
     setLoading(false);
 
+// ✅ GET USER SESSION
+const {
+  data: { user },
+} = await supabase.auth.getUser();
+
+if (user) {
+  // ✅ CHECK IF USER EXISTS IN public.users
+  const { data: dbUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  // ✅ FALLBACK CREATE (CRITICAL)
+  if (!dbUser) {
+    console.warn("⚠️ Missing user row → creating fallback");
+
+    await supabase.from("users").insert({
+      id: user.id,
+    });
+  }
+}
+
 router.push("/dashboard");
 router.refresh();
   };

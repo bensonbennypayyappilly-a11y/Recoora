@@ -223,11 +223,11 @@ export async function POST(req: Request) {
   }
 
   /* ================= USER LOOKUP ================= */
-  const stripeAccountId = event.account;
+ const stripeAccountId = event.account;
 
 if (!stripeAccountId) {
-  console.error("❌ Missing event.account — webhook not from connected account");
-  return NextResponse.json({ error: "No account context" });
+  console.log("⏭ Skipping platform billing event");
+  return NextResponse.json({ ignored: true });
 }
 
   const { data: user, error: userError } = await supabaseServer
@@ -256,6 +256,7 @@ if (!user) {
   console.error("❌ CRITICAL: No user found for stripe_account_id:", stripeAccountId);
   return NextResponse.json({ error: "User not found" }, { status: 400 });
 }
+
 
 /* ================= DB INSERT ================= */
 const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
@@ -289,6 +290,11 @@ const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
     return NextResponse.json({ error: true });
   }
   console.log("✅ DB insert successful:", event.id);
+
+  if (!user.slack_access_token) {
+  console.error("❌ Missing slack_access_token for user:", user.id);
+  return NextResponse.json({ success: true, slack: "missing_token" });
+}
 
     if (!user.slack_connected) {
     console.warn("⚠️ Slack not connected for user:", user.id);
@@ -423,11 +429,7 @@ ${productLine}Amount: ${amountFormatted}
     "📤 slackPayload decision:",
     slackPayload ? slackPayload.text : "NULL — no payload built for " + eventType
   );
-  
-if (!user.slack_access_token) {
-  console.error("❌ Missing slack_access_token for user:", user.id);
-  return NextResponse.json({ success: true, slack: "missing_token" });
-}
+
   /* ================= SEND TO SLACK ================= */
   if (slackPayload) {
     try {

@@ -66,6 +66,9 @@ const supabase = createServerClient(
       customer: customerId,
       mode: "subscription",
       payment_method_types: ["card"],
+      metadata: {
+      user_id: user.id,
+      },
       line_items: [
         {
           price: process.env.STRIPE_STARTER_PRICE_ID!,

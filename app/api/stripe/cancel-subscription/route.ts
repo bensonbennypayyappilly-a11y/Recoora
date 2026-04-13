@@ -71,7 +71,7 @@ if (!user) {
     await supabaseAdmin
       .from("users")
       .update({
-        subscription_status: "canceled",
+        subscription_status: "canceling",
         current_period_end: new Date(periodEnd * 1000).toISOString(),
       })
       .eq("id", user.id);

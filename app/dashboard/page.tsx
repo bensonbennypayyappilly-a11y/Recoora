@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [atRiskCustomers, setAtRiskCustomers] = useState<AtRiskCustomer[]>([]);
   const stripeAccountIdRef = useRef<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  
 
   const isPro = plan === "pro";
   const isTrialExpired =
@@ -313,10 +314,15 @@ if (
       </div>
     );
   }
-
+  
   const handleConnect = () => {
-    window.location.href = "/api/stripe/oauth";
-  };
+  if (!userId) {
+    console.error("❌ No userId available for Stripe connect");
+    return;
+  }
+
+  window.location.href = `/api/stripe/oauth?userId=${userId}`;
+};
 
   const refreshDashboard = async () => {
     setRefreshing(true);

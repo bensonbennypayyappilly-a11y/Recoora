@@ -24,16 +24,7 @@ const supabase = createServerClient(
   }
 );
 
-const {
-  data: { user },
-  error: userError,
-} = await supabase.auth.getUser();
-
-if (userError || !user) {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-}
-
-    // ✅ OPTIONAL: Validate state (basic protection)
+   // ✅ OPTIONAL: Validate state (basic protection)
     let parsedStateUserId: string | null = null;
 
 try {
@@ -42,8 +33,11 @@ try {
 } catch {
   console.error("❌ Failed to parse state");
 }
+if (!parsedStateUserId) {
+  return NextResponse.json({ error: "Invalid state" }, { status: 400 });
+}
 
-if (!parsedStateUserId || parsedStateUserId !== user.id) {
+if (!parsedStateUserId) {
   console.error("❌ Invalid state:", state);
   return NextResponse.json({ error: "Invalid state" }, { status: 400 });
 }
@@ -78,7 +72,7 @@ const refreshToken = stripeData.refresh_token;
     stripe_access_token: accessToken,
     stripe_refresh_token: refreshToken,
   })
-  .eq("id", user.id);
+  .eq("id", parsedStateUserId);
 
 if (updateError) {
   console.error("Stripe connect DB error:", updateError);

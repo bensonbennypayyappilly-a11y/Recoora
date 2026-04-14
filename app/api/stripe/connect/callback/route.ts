@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export async function GET(req: Request) {
   try {
@@ -13,17 +14,37 @@ export async function GET(req: Request) {
     }
 
     // ✅ GET USER FIRST (FIXES YOUR ERROR)
-    const {
-      data: { user },
-    } = await supabaseServer.auth.getUser();
+    const cookieStore = await cookies();
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const supabase = createServerClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    cookies: cookieStore,
+  }
+);
+
+const {
+  data: { user },
+  error: userError,
+} = await supabase.auth.getUser();
+
+if (userError || !user) {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
 
     // ✅ OPTIONAL: Validate state (basic protection)
-    if (!state || state !== user.id) {
-  console.error("❌ Invalid or missing state:", state);
+    let parsedStateUserId: string | null = null;
+
+try {
+  const parsed = JSON.parse(state || "{}");
+  parsedStateUserId = parsed.userId;
+} catch {
+  console.error("❌ Failed to parse state");
+}
+
+if (!parsedStateUserId || parsedStateUserId !== user.id) {
+  console.error("❌ Invalid state:", state);
   return NextResponse.json({ error: "Invalid state" }, { status: 400 });
 }
 
@@ -50,7 +71,7 @@ export async function GET(req: Request) {
 const accessToken = stripeData.access_token;
 const refreshToken = stripeData.refresh_token;
 
-   const { error: updateError } = await supabaseServer
+   const { error: updateError } = await supabase
   .from("users")
   .update({
     stripe_account_id: stripeAccountId,

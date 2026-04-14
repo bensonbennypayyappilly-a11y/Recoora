@@ -22,9 +22,10 @@ export async function GET(req: Request) {
     }
 
     // ✅ OPTIONAL: Validate state (basic protection)
-    if (state && state !== user.id) {
-      return NextResponse.json({ error: "Invalid state" }, { status: 400 });
-    }
+    if (!state || state !== user.id) {
+  console.error("❌ Invalid or missing state:", state);
+  return NextResponse.json({ error: "Invalid state" }, { status: 400 });
+}
 
     const tokenRes = await fetch("https://connect.stripe.com/oauth/token", {
       method: "POST",
@@ -46,18 +47,22 @@ export async function GET(req: Request) {
 }
 
     const stripeAccountId = stripeData.stripe_user_id;
+const accessToken = stripeData.access_token;
+const refreshToken = stripeData.refresh_token;
 
-    await supabaseServer
-      .from("users")
-      .update({
-        stripe_account_id: stripeAccountId,
-        stripe_access_token: stripeData.access_token,
-        stripe_refresh_token: stripeData.refresh_token,
-        stripe_publishable_key: stripeData.stripe_publishable_key,
-        stripe_scope: stripeData.scope,
-        stripe_connected_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
+   const { error: updateError } = await supabaseServer
+  .from("users")
+  .update({
+    stripe_account_id: stripeAccountId,
+    stripe_access_token: accessToken,
+    stripe_refresh_token: refreshToken,
+  })
+  .eq("id", user.id);
+
+if (updateError) {
+  console.error("Stripe connect DB error:", updateError);
+  return NextResponse.json({ error: "DB update failed" }, { status: 500 });
+}
       
 
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard`);

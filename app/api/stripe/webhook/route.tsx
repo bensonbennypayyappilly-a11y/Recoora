@@ -29,6 +29,12 @@ export async function POST(req: Request) {
   }
 
   const eventType = event.type;
+  const stripeAccountId = event.account;
+
+if (!stripeAccountId) {
+  console.log("⏭ Skipping platform billing event");
+  return NextResponse.json({ ignored: true });
+}
   console.log("📩 EVENT TYPE:", eventType);
   console.log("📩 EVENT ID:", event.id);
 
@@ -51,34 +57,10 @@ export async function POST(req: Request) {
     invoiceId = data.id;
   }
 
-  // ─── Deduplication ────────────────────────────────────────────────────────
-  const { data: existingEvent } = await supabaseServer
-    .from("stripe_events")
-    .select("id")
-    .eq("stripe_event_id", event.id)
-    .maybeSingle();
+  
 
-  if (existingEvent) {
-    console.log("⏭ Duplicate event, skipping:", event.id);
-    return NextResponse.json({ duplicate: true });
-  }
-
-  // ─── Invoice-level deduplication (FIXES DOUBLE ALERTS) ───────────────────
-  if (invoiceId) {
-    const { data: existingInvoiceEvent } = await supabaseServer
-      .from("stripe_events")
-      .select("id, deleted_at")
-      .eq("invoice_id", invoiceId)
-      .maybeSingle();
-
-    if (existingInvoiceEvent) {
-      console.log("⏭ Duplicate invoice-level event, skipping:", invoiceId);
-      return NextResponse.json({
-        skipped: true,
-        reason: "duplicate_invoice",
-      });
-    }
-  }
+  
+  
 
   let failureReason: string | null = null;
   let failureCode: string | null = null;
@@ -92,25 +74,37 @@ export async function POST(req: Request) {
   try {
     if (data.lines?.data?.[0]?.pricing?.price_details?.product) {
       const product = await stripe.products.retrieve(
-        data.lines.data[0].pricing.price_details.product
-      );
+  data.lines.data[0].pricing.price_details.product,
+  {},
+  { stripeAccount: stripeAccountId }
+);
       productName = product.name;
     }
 
     if (!productName && data.items?.data?.[0]?.price?.product) {
       const product = await stripe.products.retrieve(
-        data.items.data[0].price.product
-      );
+  data.items.data[0].price.product,
+  {},
+  { stripeAccount: stripeAccountId }
+);
       productName = product.name;
     }
 
     if (!productName && eventType === "checkout.session.completed") {
-      const session = await stripe.checkout.sessions.retrieve(data.id, {
-        expand: ["line_items.data.price.product"],
-      });
+      const session = await stripe.checkout.sessions.retrieve(
+  data.id,
+  {
+    expand: ["line_items.data.price.product"],
+  },
+  { stripeAccount: stripeAccountId }
+);
       const productId = session.line_items?.data?.[0]?.price?.product;
       if (productId) {
-        const product = await stripe.products.retrieve(productId as string);
+        const product = await stripe.products.retrieve(
+  productId as string,
+  {},
+  { stripeAccount: stripeAccountId }
+);
         productName = product.name;
       }
     }
@@ -156,7 +150,11 @@ export async function POST(req: Request) {
     }
 
     if (!customerEmail && data.customer) {
-      const customerObj = await stripe.customers.retrieve(data.customer);
+      const customerObj = await stripe.customers.retrieve(
+  data.customer,
+  {},
+  { stripeAccount: stripeAccountId }
+);
       if (!("deleted" in customerObj)) {
         customerEmail = (customerObj as Stripe.Customer).email;
       }
@@ -180,7 +178,11 @@ export async function POST(req: Request) {
 
     if (linkedSubId) {
       try {
-        const sub = await stripe.subscriptions.retrieve(linkedSubId);
+        const sub = await stripe.subscriptions.retrieve(
+  linkedSubId,
+  {},
+  { stripeAccount: stripeAccountId }
+);
         if (sub.status === "canceled") {
           console.log("⏭ Skipping invoice.payment_succeeded — subscription canceled");
           return NextResponse.json({ skipped: true, reason: "subscription_canceled" });
@@ -223,13 +225,7 @@ export async function POST(req: Request) {
   }
 
   /* ================= USER LOOKUP ================= */
- const stripeAccountId = event.account;
-
-if (!stripeAccountId) {
-  console.log("⏭ Skipping platform billing event");
-  return NextResponse.json({ ignored: true });
-}
-
+ 
   const { data: user, error: userError } = await supabaseServer
     .from("users")
     .select("id, slack_connected, slack_access_token, slack_channel_id")
@@ -255,6 +251,40 @@ if (!stripeAccountId) {
 if (!user) {
   console.error("❌ CRITICAL: No user found for stripe_account_id:", stripeAccountId);
   return NextResponse.json({ error: "User not found" }, { status: 400 });
+}
+
+
+// ─── Invoice-level deduplication (FIXES DOUBLE ALERTS) ───────────────────
+
+if (invoiceId) {
+    const { data: existingInvoiceEvent } = await supabaseServer
+      .from("stripe_events")
+      .select("id, deleted_at")
+      .eq("invoice_id", invoiceId)
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (existingInvoiceEvent) {
+      console.log("⏭ Duplicate invoice-level event, skipping:", invoiceId);
+      return NextResponse.json({
+        skipped: true,
+        reason: "duplicate_invoice",
+      });
+    }
+  }
+
+// ─── Deduplication (USER-SCOPED — FIXED) ─────────────────────────
+const { data: existingEvent } = await supabaseServer
+  .from("stripe_events")
+  .select("id")
+  .eq("stripe_event_id", event.id)
+  .eq("user_id", user.id)
+  .maybeSingle();
+
+if (existingEvent) {
+  console.log("⏭ Duplicate event (user-scoped), skipping:", event.id);
+  return NextResponse.json({ duplicate: true });
 }
 
 
@@ -311,7 +341,10 @@ const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
     ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(customerEmail!)}`
     : null;
 
-  const buttonValue = JSON.stringify({ eventId: event.id });
+  const actionValue = JSON.stringify({
+  eventId: event.id,
+  user_id: user.id,
+});
 
   const buildActionBlocks = (title: string, body: string) => {
     const contentBlock = {
@@ -335,7 +368,7 @@ const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
               type: "button",
               text: { type: "plain_text", text: "✅ Mark as Contacted" },
               style: "primary",
-              value: buttonValue,
+              value: actionValue,
               action_id: "mark_contacted",
             },
           ],
@@ -465,6 +498,7 @@ ${productLine}Amount: ${amountFormatted}
             slack_channel_id: user.slack_channel_id,
           })
          .eq("stripe_event_id", event.id)
+         .eq("stripe_account_id", stripeAccountId)
          .eq("user_id", user.id);
 
         if (tsUpdateError) {

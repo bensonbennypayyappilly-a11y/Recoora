@@ -5,6 +5,8 @@ import { useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
+
+
 type Plan = "trial" | "starter" | "pro";
 type Tab =
   | "account"
@@ -99,6 +101,8 @@ function AccountSection() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [plan, setPlan] = useState("trial");
+  const [status, setStatus] = useState("inactive");
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -107,20 +111,26 @@ function AccountSection() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (!user) {
+  setLoading(false);
+  return;
+}
 
       // ✅ Get profile data from DB
       const { data } = await supabase
         .from("users")
-        .select("full_name, company_name")
+        .select("full_name, company_name, plan, subscription_status")
         .eq("id", user.id)
         .single();
 
-      setProfile({
-        fullName: data?.full_name || "",
-        company: data?.company_name || "",
-        email: user.email || "",
-      });
+      setPlan(data?.plan || "trial");
+setStatus(data?.subscription_status || "inactive");
+
+setProfile({
+  fullName: data?.full_name || "",
+  company: data?.company_name || "",
+  email: user.email || "",
+});
 
       setLoading(false);
     };
@@ -140,11 +150,11 @@ function AccountSection() {
       <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
         <div className="flex justify-between items-center">
           <div>
-            <div className="text-zinc-500 text-sm">Current Plan</div>
-            <div className="text-lg font-medium capitalize">starter</div>
-            <div className="mt-1 text-xs text-emerald-400">
-              Status: Active
-            </div>
+            <div className="text-lg font-medium capitalize">{plan}</div>
+
+          <div className="mt-1 text-xs text-emerald-400">
+          Status: {status}
+          </div>
           </div>
 
           <button
@@ -345,7 +355,7 @@ function IntegrationItem({
 function BillingSection() {
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<"trial" | "starter" | "pro">("trial");
-  const [status, setStatus] = useState("inactive");
+  const [status, setStatus] = useState("trial");
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
 
   useEffect(() => {

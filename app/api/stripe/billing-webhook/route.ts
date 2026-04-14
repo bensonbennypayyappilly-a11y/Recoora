@@ -82,15 +82,17 @@ export async function POST(req: Request) {
      🎯 HANDLE EVENTS
   ======================================================= */
 
-  if (eventType === "checkout.session.completed") {
-    await supabaseAdmin
-      .from("users")
-      .update({
-        plan: "starter",
-        subscription_status: "active",
-      })
-      .eq("id", user.id);
-  }
+ if (eventType === "customer.subscription.created") {
+  await supabaseAdmin
+    .from("users")
+    .update({
+      plan: "starter",
+      stripe_subscription_id: data.id,
+      subscription_status: data.status,
+      current_period_end: new Date(data.current_period_end * 1000).toISOString(),
+    })
+    .eq("id", user.id);
+}
 
   if (eventType === "invoice.payment_succeeded") {
     await supabaseAdmin
@@ -136,7 +138,7 @@ export async function POST(req: Request) {
       .from("users")
       .update({
         subscription_status: "canceled",
-        plan: "free",
+        plan: "trial"
       })
       .eq("id", user.id);
   }

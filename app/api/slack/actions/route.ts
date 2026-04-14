@@ -1,27 +1,55 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
+import crypto from "crypto";
+
+function verifySlackRequest(req: Request, body: string) {
+  const signature = req.headers.get("x-slack-signature")!;
+  const timestamp = req.headers.get("x-slack-request-timestamp")!;
+
+  const base = `v0:${timestamp}:${body}`;
+  const hmac = crypto
+    .createHmac("sha256", process.env.SLACK_SIGNING_SECRET!)
+    .update(base)
+    .digest("hex");
+
+  const expected = `v0=${hmac}`;
+
+  try {
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signature)
+  );
+} catch {
+  return false;
+}
+}
 
 export async function POST(req: Request) {
-  // ─── Parse body ───────────────────────────────────────────────────────────
-  // Slack sends button actions as application/x-www-form-urlencoded
-  // with a single "payload" key containing a JSON string.
+  const body = await req.text();
+
+  // 🔐 VERIFY SLACK SIGNATURE FIRST
+  if (!verifySlackRequest(req, body)) {
+    console.error("❌ Invalid Slack signature");
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  // ─── Parse body ─────────────────────────────────────────────
   let payloadRaw: string | null = null;
 
   const contentType = req.headers.get("content-type") || "";
 
   if (contentType.includes("application/x-www-form-urlencoded")) {
-    try {
-      const formData = await req.formData();
-      payloadRaw = formData.get("payload") as string | null;
-    } catch (e) {
-      console.error("❌ Failed to parse formData:", e);
-      return new NextResponse("Bad Request", { status: 400 });
-    }
-  } else {
+  try {
+    const params = new URLSearchParams(body);
+    payloadRaw = params.get("payload");
+  } catch (e) {
+    console.error("❌ Failed to parse formData:", e);
+    return new NextResponse("Bad Request", { status: 400 });
+  }
+} else {
     // Fallback: try reading as text (some proxies re-encode)
     try {
-      const text = await req.text();
-      const params = new URLSearchParams(text);
+      const params = new URLSearchParams(body);
       payloadRaw = params.get("payload");
     } catch (e) {
       console.error("❌ Failed to read request body as text:", e);
@@ -72,18 +100,28 @@ export async function POST(req: Request) {
 
     /* Step 1 — Parse eventId from button value */
     let eventId: string | null = null;
+let userId: string | null = null;
 
-    try {
-      const parsed = JSON.parse(action.value);
-      eventId = parsed.eventId || null;
-      console.log("✅ Parsed eventId:", eventId);
-    } catch (e) {
+try {
+  const parsed = JSON.parse(action.value);
+
+  eventId = parsed.eventId || null;
+  userId = parsed.user_id || null;
+
+  console.log("✅ Parsed eventId:", eventId);
+  console.log("✅ Parsed userId:", userId);
+
+} catch (e) {
       console.error("❌ JSON.parse(action.value) failed.");
       console.error("   action.value was:", action.value);
       console.error("   Error:", e);
       // Return 200 so Slack doesn't show an error to the user
       return NextResponse.json({ ok: true, error: "value_parse_failed" });
     }
+    if (!userId) {
+  console.error("❌ user_id missing in action.value");
+  return NextResponse.json({ ok: true, error: "missing_user_id" });
+}
 
     if (!eventId) {
       console.error("❌ eventId is null or undefined after parsing. action.value:", action.value);
@@ -94,10 +132,8 @@ export async function POST(req: Request) {
 const { data: user } = await supabaseServer
   .from("users")
   .select("id, slack_access_token")
-  .eq("slack_team_id", payload.team.id)
-  .eq("slack_channel_id", payload.channel.id)
+  .eq("id", userId)
   .eq("slack_connected", true)
-  .limit(1)
   .maybeSingle();
 
   if (!user) {
@@ -231,4 +267,5 @@ const { data: user } = await supabaseServer
 
   // Always return 200 — Slack requires this within 3 seconds
   return NextResponse.json({ ok: true });
-}
+
+ }

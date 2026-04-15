@@ -114,28 +114,41 @@ if (!stripeAccountId) {
 
   /* ================= AMOUNT ================= */
   if (eventType === "invoice.payment_succeeded") {
-    amount = data.amount_paid;
-    const billingReason = data.billing_reason;
-    if (billingReason === "subscription_create") {
-      paymentType = "🆕 New Subscription";
-      paymentContext = "First payment from new customer";
-    } else if (billingReason === "subscription_cycle") {
-      paymentType = "🔁 Renewal";
-      paymentContext = "Monthly recurring payment";
-    } else if (billingReason === "subscription_update") {
-      paymentType = "⚙️ Plan Change";
-      paymentContext = "Upgrade or downgrade";
-    } else {
-      paymentType = "💰 Payment";
-      paymentContext = billingReason || "Unknown";
-    }
-  } else if (eventType === "invoice.payment_failed") {
+  const billingReason = data.billing_reason;
+
+  // 🚫 BLOCK DUPLICATE: first subscription payment
+  if (billingReason === "subscription_create") {
+    console.log("⛔ Skipping invoice — initial subscription handled by checkout");
+    return NextResponse.json({
+      skipped: true,
+      reason: "duplicate_initial_payment",
+    });
+  }
+
+  amount = data.amount_paid;
+
+  if (billingReason === "subscription_cycle") {
+    paymentType = "🔁 Renewal";
+    paymentContext = "Monthly recurring payment";
+  } else if (billingReason === "subscription_update") {
+    paymentType = "⚙️ Plan Change";
+    paymentContext = "Upgrade or downgrade";
+  } else {
+    paymentType = "💰 Payment";
+    paymentContext = billingReason || "Unknown";
+  }
+} else if (eventType === "invoice.payment_failed") {
     amount = data.amount_due || data.amount_remaining;
     failureReason = data.last_payment_error?.message || "Payment failed";
     failureCode = data.last_payment_error?.code || "unknown";
   } else if (eventType === "customer.subscription.deleted") {
-    amount = data.items?.data?.[0]?.price?.unit_amount || null;
-  } else if (eventType === "checkout.session.completed") {
+  amount = data.items?.data?.[0]?.price?.unit_amount || null;
+
+  failureReason =
+    data.cancellation_details?.reason ||
+    (data.cancel_at_period_end ? "User scheduled cancellation" : "Unknown");
+}
+  else if (eventType === "checkout.session.completed") {
     amount = data.amount_total || null;
   }
 
@@ -290,27 +303,31 @@ if (existingEvent) {
 
 /* ================= DB INSERT ================= */
 const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
-  user_id: user.id, // ✅ NEVER optional
-    stripe_event_id: event.id,
-    stripe_account_id: stripeAccountId,
-    event_type: eventType,
-    customer_id: data.customer || null,
-    customer_email: customerEmail,
-    subscription_id: subscriptionId,
-    amount: amount,
-    currency: data.currency || null,
-    action_status: "required",
-    raw: event,
-    plan_name: productName,
-    invoice_id: invoiceId,
-    attempt_count: data.attempt_count || null,
-    alert_level: alertLevel,
-    alert_type: alertType,
-    failure_reason: failureReason,
-    customer_risk_level: customerRiskLevel,
-    failure_code: failureCode,
-  },
-  {
+  user_id: user.id,
+  stripe_event_id: event.id,
+  stripe_account_id: stripeAccountId,
+  event_type: eventType,
+  customer_id: data.customer || null,
+  customer_email: customerEmail,
+  subscription_id: subscriptionId,
+  amount: amount,
+  currency: data.currency || null,
+  action_status: "required",
+  raw: event,
+  plan_name: productName,
+  invoice_id: invoiceId,
+  attempt_count: data.attempt_count || null,
+  alert_level: alertLevel,
+  alert_type: alertType,
+  failure_reason: failureReason,
+  customer_risk_level: customerRiskLevel,
+  failure_code: failureCode,
+
+  // ✅ NEW FIELD
+  billing_reason: data.billing_reason || null,
+
+},
+{
   onConflict: "stripe_event_id"
 });
 
@@ -415,9 +432,11 @@ const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
     const body = `Customer: ${customer}
 ${productLine}Amount: ${amountFormatted}
 
-Failure Reason: ${failureReason || "Unknown"}
+❌ Failure Reason:
+${failureReason || "Unknown"}
 
-${retryNote}
+🔁 Attempt: ${attempt}
+
 ${riskNote}`;
 
     slackPayload = {
@@ -428,14 +447,23 @@ ${riskNote}`;
       ),
     };
   } else if (eventType === "customer.subscription.deleted") {
-    slackPayload = {
-      text: "💀 Subscription Cancelled",
-      blocks: buildActionBlocks(
-        "💀 *Customer Churn Detected*",
-        `Customer: ${customer}\n${productLine}Revenue Lost: ${amountFormatted}`
-      ),
-    };
-  } else if (eventType === "checkout.session.completed") {
+  const cancelReason =
+    data.cancellation_details?.reason ||
+    (data.cancel_at_period_end ? "User scheduled cancellation" : "Unknown");
+
+  slackPayload = {
+    text: "💀 Subscription Cancelled",
+    blocks: buildActionBlocks(
+      "💀 *Customer Churn Detected*",
+      `Customer: ${customer}
+${productLine}Revenue Lost: ${amountFormatted}
+
+📉 Reason: ${cancelReason}`
+    ),
+  };
+}
+  
+  else if (eventType === "checkout.session.completed") {
     slackPayload = {
       text: "🆕 New Subscription",
       blocks: buildCleanBlocks(

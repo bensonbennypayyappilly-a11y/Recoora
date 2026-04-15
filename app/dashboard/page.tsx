@@ -101,26 +101,40 @@ export default function Dashboard() {
       // Stats fetch — separate query so deleted items don't affect totals
       const { data: allEvents } = await supabase
         .from("stripe_events")
-        .select("event_type, amount")
+        .select("event_type, amount, invoice_id, stripe_event_id")
         .eq("user_id", data.session.user.id)
         .gte("created_at", sinceDate.toISOString());
 
       let revenue = 0, failed = 0, lost = 0;
-      allEvents?.forEach((e) => {
-        if (
-          e.event_type === "invoice.payment_succeeded" ||
-          e.event_type === "checkout.session.completed"
-        ) {
-          revenue += e.amount || 0;
-        }
-        if (e.event_type === "invoice.payment_failed") {
-          failed += e.amount || 0;
-        }
-        if (e.event_type === "customer.subscription.deleted") {
-          lost += e.amount || 0;
-        }
-      });
-      setPeriodStats({ revenue, failed, lost });
+
+const failedInvoices = new Set();
+
+allEvents?.forEach((e) => {
+  // ✅ Revenue
+  if (
+    e.event_type === "invoice.payment_succeeded" ||
+    e.event_type === "checkout.session.completed"
+  ) {
+    revenue += e.amount || 0;
+  }
+
+  // ✅ Failed (deduplicated by invoice)
+  if (e.event_type === "invoice.payment_failed") {
+    const key = e.invoice_id || e.stripe_event_id;
+
+    if (!failedInvoices.has(key)) {
+      failedInvoices.add(key);
+      failed += e.amount || 0;
+    }
+  }
+
+  // ✅ Lost
+  if (e.event_type === "customer.subscription.deleted") {
+    lost += e.amount || 0;
+  }
+});
+
+setPeriodStats({ revenue, failed, lost });
 
       // ── Derive at-risk customers from fetched events ──────────────────────
       const riskOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };

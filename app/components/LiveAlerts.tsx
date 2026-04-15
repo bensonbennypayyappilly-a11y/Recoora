@@ -15,6 +15,9 @@ type Alert = {
   attempt_count?: number;
   failure_reason?: string;
   customer_risk_level?: string;
+
+  // ✅ NEW
+  billing_reason?: string;
 };
 
 function timeAgo(date: string) {
@@ -519,6 +522,17 @@ export default function LiveAlerts({ alerts }: { alerts: Alert[] }) {
                         ${((alert.amount || 0) / 100).toFixed(2)}
                       </span>
 
+                      {alert.billing_reason && (
+  <>
+    <span className="text-zinc-600 text-[11px]">·</span>
+    <span className="text-[11px] text-sky-400">
+      {alert.billing_reason === "subscription_create" && "New"}
+      {alert.billing_reason === "subscription_cycle" && "Renewal"}
+      {alert.billing_reason === "subscription_update" && "Plan Change"}
+    </span>
+  </>
+)}
+
                       {alert.plan_name && (
                         <>
                           <span className="text-zinc-600 text-[11px]">·</span>
@@ -539,7 +553,8 @@ export default function LiveAlerts({ alerts }: { alerts: Alert[] }) {
                         )}
 
                       {/* Failure reason — inline, subtle */}
-                      {alert.event_type === "invoice.payment_failed" &&
+                      {(alert.event_type === "invoice.payment_failed" ||
+                        alert.event_type === "customer.subscription.deleted") &&
                         alert.failure_reason && (
                           <>
                             <span className="text-zinc-600 text-[11px]">·</span>

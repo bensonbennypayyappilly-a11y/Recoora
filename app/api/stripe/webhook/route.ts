@@ -258,12 +258,12 @@ if (!user) {
 
 if (invoiceId) {
     const { data: existingInvoiceEvent } = await supabaseServer
-      .from("stripe_events")
-      .select("id, deleted_at")
-      .eq("invoice_id", invoiceId)
-      .eq("user_id", user.id)
-      .is("deleted_at", null)
-      .maybeSingle();
+  .from("stripe_events")
+  .select("id, deleted_at")
+  .eq("invoice_id", invoiceId)
+  .eq("stripe_account_id", stripeAccountId)
+  .is("deleted_at", null)
+  .maybeSingle();
 
     if (existingInvoiceEvent) {
       console.log("⏭ Duplicate invoice-level event, skipping:", invoiceId);
@@ -279,7 +279,7 @@ const { data: existingEvent } = await supabaseServer
   .from("stripe_events")
   .select("id")
   .eq("stripe_event_id", event.id)
-  .eq("user_id", user.id)
+  .eq("stripe_account_id", stripeAccountId)
   .maybeSingle();
 
 if (existingEvent) {

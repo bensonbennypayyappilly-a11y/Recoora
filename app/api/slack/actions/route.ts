@@ -1,78 +1,75 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
-import crypto from "crypto";
 
-function verifySlackRequest(req: Request, body: string) {
-  const signature = req.headers.get("x-slack-signature")!;
-  const timestamp = req.headers.get("x-slack-request-timestamp")!;
 
-  const base = `v0:${timestamp}:${body}`;
-  const hmac = crypto
-    .createHmac("sha256", process.env.SLACK_SIGNING_SECRET!)
-    .update(base)
-    .digest("hex");
-
-  const expected = `v0=${hmac}`;
-
-  try {
-  return crypto.timingSafeEqual(
-    Buffer.from(expected),
-    Buffer.from(signature)
-  );
-} catch {
-  return false;
-}
-}
 
 export async function POST(req: Request) {
-  const body = await req.text();
+  const slackSigningSecret = process.env.SLACK_SIGNING_SECRET!;
+const timestamp = req.headers.get("x-slack-request-timestamp") || "";
+const slackSig = req.headers.get("x-slack-signature") || "";
 
-  // 🔐 VERIFY SLACK SIGNATURE FIRST
-  if (!verifySlackRequest(req, body)) {
-    console.error("❌ Invalid Slack signature");
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+// Reject requests older than 5 minutes (replay attack protection)
+const reqTime = parseInt(timestamp, 10);
+if (Math.abs(Date.now() / 1000 - reqTime) > 300) {
+  return new NextResponse("Request too old", { status: 400 });
+}
 
-  // ─── Parse body ─────────────────────────────────────────────
-  let payloadRaw: string | null = null;
+// Read raw body ONCE
+const rawBody = await req.text();
 
-  const contentType = req.headers.get("content-type") || "";
+const sigBasestring = `v0:${timestamp}:${rawBody}`;
+const encoder = new TextEncoder();
 
-  if (contentType.includes("application/x-www-form-urlencoded")) {
-  try {
-    const params = new URLSearchParams(body);
-    payloadRaw = params.get("payload");
-  } catch (e) {
-    console.error("❌ Failed to parse formData:", e);
-    return new NextResponse("Bad Request", { status: 400 });
-  }
-} else {
-    // Fallback: try reading as text (some proxies re-encode)
-    try {
-      const params = new URLSearchParams(body);
-      payloadRaw = params.get("payload");
-    } catch (e) {
-      console.error("❌ Failed to read request body as text:", e);
-      return new NextResponse("Bad Request", { status: 400 });
-    }
-  }
+const key = await crypto.subtle.importKey(
+  "raw",
+  encoder.encode(slackSigningSecret),
+  { name: "HMAC", hash: "SHA-256" },
+  false,
+  ["sign"]
+);
 
-  console.log("📩 Raw payload received:", payloadRaw ? "YES (length=" + payloadRaw.length + ")" : "MISSING");
+const signatureBuffer = await crypto.subtle.sign(
+  "HMAC",
+  key,
+  encoder.encode(sigBasestring)
+);
+
+const computedSig =
+  "v0=" +
+  Array.from(new Uint8Array(signatureBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+if (computedSig !== slackSig) {
+  return new NextResponse("Invalid signature", { status: 401 });
+}
+  
+
+ let payloadRaw: string | null = null;
+
+try {
+  const params = new URLSearchParams(rawBody);
+  payloadRaw = params.get("payload");
 
   if (!payloadRaw) {
-    console.error("❌ payload is missing from Slack action request");
+    console.error("❌ payload missing from Slack request");
     return new NextResponse("Bad Request", { status: 400 });
   }
+} catch (e) {
+  console.error("❌ Failed to parse Slack payload:", e);
+  return new NextResponse("Bad Request", { status: 400 });
+}
 
-  // ─── Parse JSON ───────────────────────────────────────────────────────────
-  let payload: any;
-  try {
-    payload = JSON.parse(payloadRaw);
-  } catch (e) {
-    console.error("❌ Failed to JSON.parse Slack payload:", e);
-    console.error("Raw value was:", payloadRaw.substring(0, 200));
-    return new NextResponse("Bad Request", { status: 400 });
-  }
+// ─── Parse JSON ───────────────────────────────────────────
+let payload: any;
+
+try {
+  payload = JSON.parse(payloadRaw);
+} catch (e) {
+  console.error("❌ Failed to JSON.parse Slack payload:", e);
+  console.error("Raw value was:", payloadRaw.substring(0, 200));
+  return new NextResponse("Bad Request", { status: 400 });
+}
 
   // Slack URL verification (needed when first registering the endpoint)
   if (payload.type === "url_verification") {

@@ -69,7 +69,8 @@ if (!channelId) {
     }
 
     // Store Slack token securely
-    await supabaseServer
+    // Store Slack token securely
+const { error: updateError } = await supabaseServer
   .from("users")
   .update({
     slack_access_token: accessToken,
@@ -78,6 +79,14 @@ if (!channelId) {
     slack_channel_id: channelId,
   })
   .eq("id", user.id);
+
+if (updateError) {
+  console.error("❌ Failed to save Slack connection:", updateError);
+  return NextResponse.json(
+    { error: "Failed to save connection" },
+    { status: 500 }
+  );
+}
 
     // Send test message
     const slackRes = await fetch("https://slack.com/api/chat.postMessage", {

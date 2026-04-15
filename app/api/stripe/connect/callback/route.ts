@@ -34,12 +34,9 @@ try {
 } catch {
   console.error("❌ Failed to parse state");
 }
-if (!parsedStateUserId) {
-  return NextResponse.json({ error: "Invalid state" }, { status: 400 });
-}
 
-if (!parsedStateUserId) {
-  console.error("❌ Invalid state:", state);
+if (!state || !parsedStateUserId) {
+  console.error("❌ Invalid or missing state:", state);
   return NextResponse.json({ error: "Invalid state" }, { status: 400 });
 }
 
@@ -76,8 +73,11 @@ const refreshToken = stripeData.refresh_token;
   .eq("id", parsedStateUserId);
 
 if (updateError) {
-  console.error("Stripe connect DB error:", updateError);
-  return NextResponse.json({ error: "DB update failed" }, { status: 500 });
+  console.error("❌ Failed to save Stripe account:", updateError);
+  return NextResponse.json(
+    { error: "Failed to save connection" },
+    { status: 500 }
+  );
 }
       
 

@@ -352,11 +352,100 @@ const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
     return NextResponse.json({ success: true, slack: "skipped_no_channel" });
   }
   
+  // ── Email Template Generator (MATCHES DASHBOARD) ──
+function generateEmailTemplate({
+  eventType,
+  amount,
+  productName,
+  failureReason,
+  attemptCount,
+}: {
+  eventType: string;
+  amount: number | null;
+  productName: string | null;
+  failureReason: string | null;
+  attemptCount: number;
+}) {
+  const amountFormatted = `$${((amount || 0) / 100).toFixed(2)}`;
+  const plan = productName ? ` for ${productName}` : "";
+
+  if (eventType === "invoice.payment_failed") {
+    return {
+      subject: `⚠️ Payment failed — action needed to keep your access`,
+      body: `Hi,
+
+Looks like your recent payment of ${amountFormatted}${plan} didn’t go through.
+
+No worries — this happens more often than you’d think.
+
+${
+  attemptCount >= 3
+    ? "This was the final retry, so there’s a chance your access might get interrupted."
+    : attemptCount === 2
+    ? "We’ll retry again shortly, but it might fail unless it’s updated."
+    : ""
+}
+
+You can quickly fix it here:
+[..payment link...]
+
+If something feels off or you need help, just reply — I’ll take care of it personally.
+
+— [Your Product Name]`,
+    };
+  }
+
+  if (eventType === "customer.subscription.deleted") {
+    return {
+      subject: `Can we fix this before you leave?`,
+      body: `Hi,
+
+I saw that you cancelled your subscription${plan} — just wanted to check in.
+
+Was something not working the way you expected?
+
+If it was a payment issue, I can help fix it quickly.  
+If it was pricing, we can figure something out.  
+If it was the product itself, I’d really value your feedback.
+
+No pressure at all — just reply if you’re open to it.
+
+— [Your Product Name]`,
+    };
+  }
+
+  return {
+    subject: "Quick follow-up",
+    body: `Hi,
+
+Just checking in regarding your account.
+
+If you need any help, feel free to reply — happy to assist.
+
+— Team`,
+  };
+}
+
   /* ================= BLOCK BUILDERS ================= */
   const hasEmail = !!customerEmail;
-  const emailLink = hasEmail
-    ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(customerEmail!)}`
-    : null;
+
+let emailLink: string | null = null;
+
+if (hasEmail) {
+  const email = generateEmailTemplate({
+    eventType,
+    amount,
+    productName,
+    failureReason,
+    attemptCount: data.attempt_count || 1,
+  });
+
+  emailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+    customerEmail!
+  )}&su=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(
+    email.body
+  )}`;
+}
 
   const actionValue = JSON.stringify({
   eventId: event.id,
@@ -376,11 +465,10 @@ const { error: dbError } = await supabaseServer.from("stripe_events").upsert({
           type: "actions",
           elements: [
             {
-              type: "button",
-              text: { type: "plain_text", text: "📧 Contact Customer" },
-              url: emailLink!,
-              action_id: "contact_customer",
-            },
+  type: "button",
+  text: { type: "plain_text", text: "📧 Contact Customer" },
+  url: emailLink!,
+},
             {
               type: "button",
               text: { type: "plain_text", text: "✅ Mark as Contacted" },

@@ -83,8 +83,8 @@ export default function Dashboard() {
       const { data: events } = await supabase
         .from("stripe_events")
         .select(
-          "id, stripe_event_id, event_type, customer_email, amount, created_at, action_status, plan_name, attempt_count, failure_reason, customer_risk_level"
-        )
+  "id, stripe_event_id, event_type, customer_email, amount, created_at, action_status, plan_name, attempt_count, failure_reason, customer_risk_level, billing_reason"
+)
         .eq("user_id", data.session.user.id)
         .is("deleted_at", null)
         .in("event_type", [

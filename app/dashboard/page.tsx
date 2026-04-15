@@ -168,9 +168,12 @@ export default function Dashboard() {
 
   /* ── Slack redirect reload ── */
   useEffect(() => {
-    if (window.location.search.includes("slack=connected")) {
-      window.location.reload();
-    }
+  if (window.location.search.includes("slack=connected")) {
+    console.log("Slack connected successfully");
+
+    window.history.replaceState({}, "", "/dashboard");
+  }
+
   }, []);
 
   /* ── Realtime ── */

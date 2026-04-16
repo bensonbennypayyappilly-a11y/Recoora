@@ -140,11 +140,10 @@ const { data: user } = await supabaseServer
 
     /* Step 2 — Fetch current DB row for this event */
     const { data: eventRow, error: fetchError } = await supabaseServer
-      .from("stripe_events")
-      .select("id, slack_message_ts, slack_channel_id, action_status")
-      .eq("stripe_event_id", eventId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+  .from("stripe_events")
+  .select("id, slack_message_ts, slack_channel_id, action_status, user_id")
+  .eq("stripe_event_id", eventId)
+  .maybeSingle();
 
     if (fetchError) {
       console.error("❌ DB fetch error for eventId:", eventId, fetchError);
@@ -168,7 +167,7 @@ const { data: user } = await supabaseServer
       .from("stripe_events")
       .update({ action_status: "contacted_slack" })
       .eq("stripe_event_id", eventId)
-      .eq("user_id", user.id);
+      
 
     if (dbUpdateError) {
       console.error("❌ DB update FAILED for eventId:", eventId, dbUpdateError);

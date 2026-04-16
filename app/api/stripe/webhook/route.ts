@@ -613,9 +613,7 @@ ${productLine}Amount: ${amountFormatted}
             slack_message_ts: messageTs,
             slack_channel_id: user.slack_channel_id,
           })
-         .eq("stripe_event_id", event.id)
-         .eq("stripe_account_id", stripeAccountId)
-         .eq("user_id", user.id);
+         .eq("stripe_event_id", event.id);
 
         if (tsUpdateError) {
           console.error("❌ Failed to save slack_message_ts to DB:", tsUpdateError);

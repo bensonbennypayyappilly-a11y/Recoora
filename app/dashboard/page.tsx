@@ -514,7 +514,23 @@ if (
             </div>
           ) : (
             <>
-             
+             <div className="border border-white/6 rounded-xl p-5 bg-zinc-900/40 mb-6">
+  <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1.5">
+    Unattended Revenue
+  </p>
+
+  <p
+    className={`text-2xl font-semibold ${
+      unattended > 0 ? "text-red-400" : "text-emerald-400"
+    }`}
+  >
+    ${(unattended / 100).toFixed(2)}
+  </p>
+
+  <p className="text-xs text-zinc-500 mt-1">
+    failed payments not yet handled
+  </p>
+</div>
 
               {/* ── Range selector ── */}
               <div className="flex items-center gap-1.5 mb-8">
@@ -543,23 +559,7 @@ if (
                   );
                 })}
               </div>
-              <div className="border border-white/6 rounded-xl p-5 bg-zinc-900/40 mb-6">
-  <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1.5">
-    Unattended Revenue
-  </p>
-
-  <p
-    className={`text-2xl font-semibold ${
-      unattended > 0 ? "text-red-400" : "text-emerald-400"
-    }`}
-  >
-    ${(unattended / 100).toFixed(2)}
-  </p>
-
-  <p className="text-xs text-zinc-500 mt-1">
-    failed payments not yet handled
-  </p>
-</div>
+              
               {/* ── Stat cards ── */}
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="border border-white/6 rounded-xl p-5 bg-zinc-900/40">

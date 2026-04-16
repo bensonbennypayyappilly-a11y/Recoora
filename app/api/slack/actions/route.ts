@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabaseServer";
 
 
 export async function POST(req: Request) {
+  try {
   const slackSigningSecret = process.env.SLACK_SIGNING_SECRET!;
 const timestamp = req.headers.get("x-slack-request-timestamp") || "";
 const slackSig = req.headers.get("x-slack-signature") || "";
@@ -100,8 +101,14 @@ try {
 let userId: string | null = null;
 
 try {
-  const parsed = JSON.parse(action.value);
+let parsed: any;
 
+try {
+  parsed = action.value ? JSON.parse(action.value) : {};
+} catch (e) {
+  console.error("❌ Invalid JSON in action.value:", action.value);
+  return NextResponse.json({ ok: true });
+}
   eventId = parsed.eventId || null;
   userId = parsed.user_id || null;
 
@@ -162,24 +169,30 @@ const { data: user } = await supabaseServer
       return NextResponse.json({ ok: true, error: "event_not_found" });
     }
 
-    /* Step 3 — Update action_status in DB */
-    const { error: dbUpdateError } = await supabaseServer
-      .from("stripe_events")
-      .update({ action_status: "contacted_slack" })
-      .eq("stripe_event_id", eventId)
-      
+   /* Step 3 — Update action_status in DB */
+const { data: updatedRows, error: dbUpdateError } = await supabaseServer
+  .from("stripe_events")
+  .update({ action_status: "contacted_slack" })
+  .eq("stripe_event_id", eventId)
+  .select();
 
-    if (dbUpdateError) {
-      console.error("❌ DB update FAILED for eventId:", eventId, dbUpdateError);
-    } else {
-      console.log("✅ DB updated — action_status = contacted_slack for eventId:", eventId);
-    }
+if (dbUpdateError) {
+  console.error("❌ DB update FAILED:", dbUpdateError);
+} else if (!updatedRows || updatedRows.length === 0) {
+  console.error("❌ DB update matched 0 rows for:", eventId);
+} else {
+  console.log("✅ DB updated:", updatedRows[0].id);
+}
+      
 
     /* Step 4 — Resolve Slack channel + ts
        Primary source: DB (saved by webhook after postMessage)
        Fallback: Slack payload itself (always present in button click payloads) */
-    const slackChannel = eventRow.slack_channel_id || payload.channel?.id || null;
-    const slackTs      = eventRow.slack_message_ts  || payload.message?.ts  || null;
+    const slackChannel =
+  eventRow?.slack_channel_id || payload.channel?.id || null;
+
+const slackTs =
+  eventRow?.slack_message_ts || payload.message?.ts || null;
 
     console.log("📬 Slack update target — channel:", slackChannel, "| ts:", slackTs);
 
@@ -264,4 +277,10 @@ const { data: user } = await supabaseServer
   // Always return 200 — Slack requires this within 3 seconds
   return NextResponse.json({ ok: true });
 
- }
+  } catch (err) {
+    console.error("🔥 SLACK ACTION CRASH:", err);
+    return new NextResponse("Internal Server Error", { status: 500 });
+  }
+}
+
+ 

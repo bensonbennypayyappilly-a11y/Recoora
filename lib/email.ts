@@ -19,7 +19,7 @@ export async function sendEmail({
 }) {
   try {
     const { data, error } = await resend.emails.send({
-      from: "Revenue Radar <onboarding@resend.dev>",
+      from: "Recoora <onboarding@resend.dev>",
       to,
       subject,
       html,

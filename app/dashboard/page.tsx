@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [actionFilter, setActionFilter] = useState("all");
   const [visibleCount, setVisibleCount] = useState(10);
   const [atRiskCustomers, setAtRiskCustomers] = useState<AtRiskCustomer[]>([]);
+  const [unattended, setUnattended] = useState(0);
   const stripeAccountIdRef = useRef<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   
@@ -83,8 +84,8 @@ export default function Dashboard() {
       const { data: events } = await supabase
         .from("stripe_events")
         .select(
-  "id, stripe_event_id, event_type, customer_email, amount, created_at, action_status, plan_name, attempt_count, failure_reason, customer_risk_level, billing_reason"
-)
+          "id, stripe_event_id, event_type, customer_email, amount, created_at, action_status, plan_name, attempt_count, failure_reason, customer_risk_level, billing_reason, deleted_at, invoice_id"
+           )
         .eq("user_id", data.session.user.id)
         .is("deleted_at", null)
         .in("event_type", [
@@ -100,14 +101,20 @@ export default function Dashboard() {
 
       // Stats fetch — separate query so deleted items don't affect totals
       const { data: allEvents } = await supabase
-        .from("stripe_events")
-        .select("event_type, amount, invoice_id, stripe_event_id")
-        .eq("user_id", data.session.user.id)
-        .gte("created_at", sinceDate.toISOString());
+  .from("stripe_events")
+  .select(
+    "event_type, amount, invoice_id, stripe_event_id, action_status, deleted_at"
+  )
+  .eq("user_id", data.session.user.id)
+  .gte("created_at", sinceDate.toISOString());
 
       let revenue = 0, failed = 0, lost = 0;
 
 const failedInvoices = new Set();
+
+// ✅ NEW: unattended tracking
+let unattendedAmount = 0;
+const unattendedInvoices = new Set();
 
 allEvents?.forEach((e) => {
   // ✅ Revenue
@@ -120,13 +127,26 @@ allEvents?.forEach((e) => {
 
   // ✅ Failed (deduplicated by invoice)
   if (e.event_type === "invoice.payment_failed") {
-    const key = e.invoice_id || e.stripe_event_id;
+  const key = e.invoice_id || e.stripe_event_id;
 
-    if (!failedInvoices.has(key)) {
-      failedInvoices.add(key);
-      failed += e.amount || 0;
+  // ✅ TOTAL FAILED (existing)
+  if (!failedInvoices.has(key)) {
+    failedInvoices.add(key);
+    failed += e.amount || 0;
+  }
+
+  // ✅ UNATTENDED ONLY (NEW LOGIC)
+  if (
+    e.action_status !== "contacted_slack" &&
+    e.action_status !== "taken" &&
+    e.deleted_at === null
+  ) {
+    if (!unattendedInvoices.has(key)) {
+      unattendedInvoices.add(key);
+      unattendedAmount += e.amount || 0;
     }
   }
+}
 
   // ✅ Lost
   if (e.event_type === "customer.subscription.deleted") {
@@ -135,13 +155,23 @@ allEvents?.forEach((e) => {
 });
 
 setPeriodStats({ revenue, failed, lost });
+setUnattended(unattendedAmount);
 
       // ── Derive at-risk customers from fetched events ──────────────────────
       const riskOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
       const riskMap: Record<string, AtRiskCustomer> = {};
 
-      events?.forEach((e) => {
-        if (!e.customer_email) return;
+     events?.forEach((e) => {
+  if (!e.customer_email) return;
+
+  // ❌ REMOVE already handled / deleted alerts
+  if (
+    e.action_status === "contacted_slack" ||
+    e.action_status === "taken" ||
+    e.deleted_at !== null
+  ) {
+    return;
+  }
         const thisRisk = (e.customer_risk_level as "low" | "medium" | "high") || "low";
         const existing = riskMap[e.customer_email];
 
@@ -287,6 +317,16 @@ if (
           setAlerts((prev) =>
             prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a))
           );
+          // ✅ REMOVE from at-risk if resolved
+if (
+  updated.action_status === "contacted_slack" ||
+  updated.action_status === "taken" ||
+  updated.deleted_at !== null
+) {
+  setAtRiskCustomers((prev) =>
+    prev.filter((c) => c.email !== updated.customer_email)
+  );
+}
         }
       )
       .on(
@@ -474,13 +514,7 @@ if (
             </div>
           ) : (
             <>
-              {/* ── MRR placeholder ── */}
-              <div className="border border-white/6 rounded-xl p-5 bg-zinc-900/40 mb-8">
-                <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1.5">
-                  MRR
-                </p>
-                <p className="text-2xl font-semibold text-zinc-600">— — —</p>
-              </div>
+             
 
               {/* ── Range selector ── */}
               <div className="flex items-center gap-1.5 mb-8">
@@ -509,7 +543,23 @@ if (
                   );
                 })}
               </div>
+              <div className="border border-white/6 rounded-xl p-5 bg-zinc-900/40 mb-6">
+  <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1.5">
+    Unattended Revenue
+  </p>
 
+  <p
+    className={`text-2xl font-semibold ${
+      unattended > 0 ? "text-red-400" : "text-emerald-400"
+    }`}
+  >
+    ${(unattended / 100).toFixed(2)}
+  </p>
+
+  <p className="text-xs text-zinc-500 mt-1">
+    failed payments not yet handled
+  </p>
+</div>
               {/* ── Stat cards ── */}
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="border border-white/6 rounded-xl p-5 bg-zinc-900/40">

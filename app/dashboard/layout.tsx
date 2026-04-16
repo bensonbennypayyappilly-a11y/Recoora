@@ -34,7 +34,7 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-zinc-950 text-white">
       <div className="border-b border-white/5 bg-zinc-900 px-6 py-4 flex justify-between items-center">
         <div className="font-display text-lg tracking-tight">
-          Revenue Radar
+          Recoora
         </div>
 
         <div className="flex items-center gap-6 text-sm">

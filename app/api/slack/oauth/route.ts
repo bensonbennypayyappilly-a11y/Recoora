@@ -97,7 +97,7 @@ if (updateError) {
   },
   body: JSON.stringify({
     channel: channelId,
-    text: "🚀 Revenue Radar connected.\n\nYou'll now receive real-time alerts here when:\n• Payments fail\n• Subscriptions cancel\n• Revenue drops\n\nStay sharp ⚡",
+    text: "🚀 Recoora connected.\n\nYou'll now receive real-time alerts here when:\n• Payments fail\n• Subscriptions cancel\n• Revenue drops\n\nStay sharp ⚡",
   }),
 });
 

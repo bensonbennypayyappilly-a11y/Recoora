@@ -16,7 +16,7 @@ export default function ConnectStripePage() {
             Connect Your Stripe Account
           </h1>
           <p className="text-zinc-400 text-sm">
-            Revenue Radar needs read-only access to monitor revenue,
+            Recoora needs read-only access to monitor revenue,
             churn, and failed payments in real time.
           </p>
         </div>

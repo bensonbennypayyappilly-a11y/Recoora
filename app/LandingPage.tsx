@@ -146,7 +146,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src="/logo.png" alt="Recoora" className="w-11 h-11 rounded-md" />
-            <span className="font-display font-bold text-lg tracking-tight text-white">Recoora</span>
+            <span className="font-display font-700 text-lg tracking-tight text-white">Recoora</span>
           </div>
           
           <div className="flex items-center gap-4">
@@ -204,7 +204,7 @@ export default function LandingPage() {
             <span className="text-xs text-zinc-400 font-medium tracking-wide">Early access — Limited beta spots</span>
           </div>
 
-          <h1 className="font-display text-6xl md:text-8xl font-extrabold tracking-tight mb-4 leading-none">
+          <h1 className="font-display text-6xl md:text-8xl font-800 tracking-tight mb-4 leading-none">
             <span className="gradient-text">Stripe alerts when revenue breaks.</span>
              <br />
              <span className="accent-text">Fix it before it compounds.</span>
@@ -259,7 +259,7 @@ export default function LandingPage() {
                 ].map((stat) => (
                   <div key={stat.label} className="bg-zinc-900 card-border rounded-xl p-4 text-left">
                     <div className="text-zinc-500 text-xs mb-1">{stat.label}</div>
-                    <div className="font-display font-bold text-xl text-white">{stat.value}</div>
+                    <div className="font-display font-700 text-xl text-white">{stat.value}</div>
                     <div className={`text-xs mt-1 ${stat.up ? "text-emerald-400" : "text-amber-400"}`}>{stat.change}</div>
                   </div>
                 ))}
@@ -305,14 +305,14 @@ export default function LandingPage() {
       <section id="features" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">Built for revenue-critical events</h2>
+            <h2 className="font-display text-4xl md:text-5xl font-800 gradient-text mb-4">Built for revenue-critical events</h2>
             <p className="text-zinc-400 text-lg max-w-xl mx-auto">Covers the only events that actually lose you money: failed payments and cancellations.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {features.map((f) => (
               <div key={f.title} className={`relative bg-gradient-to-br ${f.accent} bg-zinc-900 card-border rounded-2xl p-8 hover:border-white/15 transition-all duration-300 group`}>
                 <div className={`${f.iconColor} mb-6 p-3 bg-white/5 rounded-xl inline-block`}>{f.icon}</div>
-                <h3 className="font-display font-bold text-xl text-white mb-3">{f.title}</h3>
+                <h3 className="font-display font-700 text-xl text-white mb-3">{f.title}</h3>
                 <p className="text-zinc-400 text-sm leading-relaxed">{f.desc}</p>
               </div>
             ))}
@@ -324,7 +324,7 @@ export default function LandingPage() {
 <section id="how-it-works" className="py-24 px-6 bg-white">
   <div className="max-w-4xl mx-auto">
     <div className="text-center mb-16">
-      <h2 className="font-display text-4xl md:text-5xl font-extrabold text-black mb-4">
+      <h2 className="font-display text-4xl md:text-5xl font-800 text-black mb-4">
         Set up in minutes
       </h2>
       <p className="text-gray-600 text-lg">
@@ -358,12 +358,12 @@ export default function LandingPage() {
             className="text-center relative bg-gray-50 border border-gray-200 rounded-2xl p-8 shadow-sm hover:shadow-md transition-all duration-300"
           >
             <div className="w-16 h-16 bg-emerald-100 border border-emerald-300 rounded-2xl flex items-center justify-center mx-auto mb-5">
-              <span className="font-display font-extrabold text-emerald-600 text-lg">
+              <span className="font-display font-800 text-emerald-600 text-lg">
                 {item.step}
               </span>
             </div>
 
-            <h3 className="font-display font-bold text-xl text-black mb-3">
+            <h3 className="font-display font-700 text-xl text-black mb-3">
               {item.title}
             </h3>
 
@@ -383,7 +383,7 @@ export default function LandingPage() {
 
     {/* Header */}
     <div className="mb-16">
-      <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">
+      <h2 className="font-display text-4xl md:text-5xl font-800 gradient-text mb-4">
         Stop revenue leaks before they cost you
       </h2>
 
@@ -420,7 +420,7 @@ export default function LandingPage() {
               <div className="text-zinc-400 text-sm font-medium mb-2">Starter</div>
 
               <div className="flex items-end gap-1 justify-center">
-                <span className="font-display font-extrabold text-4xl text-white">$11</span>
+                <span className="font-display font-800 text-4xl text-white">$11</span>
                 <span className="text-zinc-500 mb-1">/month</span>
               </div>
 
@@ -479,7 +479,7 @@ export default function LandingPage() {
       <section id="faq" className="py-24 px-6">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">Common questions</h2>
+            <h2 className="font-display text-4xl md:text-5xl font-800 gradient-text mb-4">Common questions</h2>
           </div>
           <div className="space-y-3">
             {faqs.map((faq, i) => (
@@ -507,7 +507,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-950/20 to-transparent pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-emerald-500/8 rounded-full blur-[100px] pointer-events-none" />
         <div className="max-w-2xl mx-auto text-center relative">
-          <h2 className="font-display text-5xl md:text-6xl font-extrabold gradient-text mb-4">Know when it matters.</h2>
+          <h2 className="font-display text-5xl md:text-6xl font-800 gradient-text mb-4">Know when it matters.</h2>
           <p className="text-zinc-400 text-xl mb-10">If revenue breaks, you should know in seconds — not hours.</p>
           <a href="#pricing" className="inline-block bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-10 py-4 rounded-xl text-base transition-all duration-200 glow-green hover:shadow-emerald-500/40 hover:shadow-2xl">
             Start Free Trial Today →
@@ -527,7 +527,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2.5">
               <img src="/logo.png" alt="Recoora" className="w-11 h-11 rounded-md" />
-              <span className="font-display font-bold text-white">Recoora</span>
+              <span className="font-display font-700 text-white">Recoora</span>
             </div>
             <div className="flex items-center gap-8">
   {[

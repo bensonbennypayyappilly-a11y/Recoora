@@ -34,6 +34,8 @@ export default function Dashboard() {
   const [atRiskCustomers, setAtRiskCustomers] = useState<AtRiskCustomer[]>([]);
   const [unattended, setUnattended] = useState(0);
   const stripeAccountIdRef = useRef<string | null>(null);
+  const processedResolvedInvoices = useRef<Set<string>>(new Set());
+  const processedInsertedInvoices = useRef<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
   
 
@@ -42,11 +44,10 @@ export default function Dashboard() {
     plan === "trial" && trialEndsAt && new Date(trialEndsAt) < new Date();
   const lockedRanges = ["15", "30", "60"];
   const isLocked = (r: string) => lockedRanges.includes(r) && !isPro;
-
+const fetchDashboardData = async () => {
   /* ── Session + data fetch ── */
-  useEffect(() => {
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
+  
+          const { data } = await supabase.auth.getSession();
       if (!data.session) {
         window.location.href = "/login";
         return;
@@ -100,13 +101,29 @@ export default function Dashboard() {
       setAlerts(events || []);
 
       // Stats fetch — separate query so deleted items don't affect totals
-      const { data: allEvents } = await supabase
+      // ✅ FULL events for stats (range-based)
+const { data: allEvents } = await supabase
   .from("stripe_events")
   .select(
     "event_type, amount, invoice_id, stripe_event_id, action_status, deleted_at"
   )
   .eq("user_id", data.session.user.id)
   .gte("created_at", sinceDate.toISOString());
+
+
+  // ✅ UNATTENDED (7 days ONLY, independent)
+const { data: failedEvents } = await supabase
+  .from("stripe_events")
+  .select(
+    "event_type, amount, invoice_id, stripe_event_id, action_status, deleted_at"
+  )
+  .eq("user_id", data.session.user.id)
+  .eq("event_type", "invoice.payment_failed")
+  .is("deleted_at", null)
+  .gte(
+    "created_at",
+    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  );
 
       let revenue = 0, failed = 0, lost = 0;
 
@@ -127,15 +144,24 @@ allEvents?.forEach((e) => {
 
   // ✅ Failed (deduplicated by invoice)
   if (e.event_type === "invoice.payment_failed") {
-  const key = e.invoice_id || e.stripe_event_id;
+  const key = e.invoice_id ?? e.stripe_event_id;
 
   // ✅ TOTAL FAILED (existing)
   if (!failedInvoices.has(key)) {
     failedInvoices.add(key);
     failed += e.amount || 0;
   }
+   }
 
-  // ✅ UNATTENDED ONLY (NEW LOGIC)
+  // ✅ Lost
+  if (e.event_type === "customer.subscription.deleted") {
+    lost += e.amount || 0;
+  }
+});
+
+// ✅ UNATTENDED ONLY (NEW LOGIC)
+  failedEvents?.forEach((e) => {
+const key = e.invoice_id ?? e.stripe_event_id;
   if (
     e.action_status !== "contacted_slack" &&
     e.action_status !== "taken" &&
@@ -145,12 +171,6 @@ allEvents?.forEach((e) => {
       unattendedInvoices.add(key);
       unattendedAmount += e.amount || 0;
     }
-  }
-}
-
-  // ✅ Lost
-  if (e.event_type === "customer.subscription.deleted") {
-    lost += e.amount || 0;
   }
 });
 
@@ -202,8 +222,9 @@ setUnattended(unattendedAmount);
       setCheckingSession(false);
     };
 
-    init();
-  }, [range]);
+    useEffect(() => {
+  fetchDashboardData();
+}, [range]);
 
   useEffect(() => {
     setVisibleCount(10);
@@ -238,7 +259,26 @@ setUnattended(unattendedAmount);
         },
         (payload) => {
           const inserted = payload.new as any;
+          // ✅ ADD: increase unattended on new failure
+const key = inserted.invoice_id ?? inserted.stripe_event_id;
 
+if (
+  inserted.event_type === "invoice.payment_failed" &&
+  inserted.action_status !== "contacted_slack" &&
+  inserted.action_status !== "taken" &&
+  inserted.deleted_at === null
+) {
+  // ✅ prevent duplicate ADD
+  if (processedInsertedInvoices.current.has(key)) {
+  return;
+}
+
+processedInsertedInvoices.current.add(key);
+
+  setUnattended((prev) => prev + (inserted.amount || 0));
+}
+
+        
           // Do not add soft-deleted alerts
           if (inserted.deleted_at !== null) return;
 
@@ -306,6 +346,30 @@ if (
         },
         (payload) => {
           const updated = payload.new as any;
+
+          // ✅ FIX: update unattended when resolved
+if (
+  updated.event_type === "invoice.payment_failed" &&
+  (updated.action_status === "contacted_slack" ||
+    updated.action_status === "taken" ||
+    updated.deleted_at !== null)
+) {
+  const key = updated.invoice_id ?? updated.stripe_event_id;
+
+  if (!key) return;
+
+  // ✅ PREVENT DOUBLE SUBTRACTION
+  if (processedResolvedInvoices.current.has(key)) {
+    return;
+  }
+
+  processedResolvedInvoices.current.add(key);
+
+  setUnattended((prev) => {
+    const amt = updated.amount || 0;
+    return Math.max(prev - amt, 0);
+  });
+}
 
           // Soft-deleted — remove from UI
           if (updated.deleted_at !== null) {
@@ -382,10 +446,12 @@ if (
 };
 
   const refreshDashboard = async () => {
-    setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setRefreshing(false);
-  };
+  setRefreshing(true);
+
+  await fetchDashboardData();
+
+  setRefreshing(false);
+};
 
   /* ── Filter logic ── */
   const filteredAlerts = alerts.filter((a) => {
@@ -528,7 +594,7 @@ if (
   </p>
 
   <p className="text-xs text-zinc-500 mt-1">
-    failed payments not yet handled
+    last 7 days • not yet handled
   </p>
 </div>
 

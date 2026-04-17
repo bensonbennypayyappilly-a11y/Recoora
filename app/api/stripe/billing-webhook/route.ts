@@ -27,6 +27,40 @@ export async function POST(req: Request) {
   }
 
   const eventType = event.type;
+  // =======================================================
+// ✅ HANDLE CHECKOUT FIRST (CRITICAL FIX)
+// =======================================================
+
+if (event.type === "checkout.session.completed") {
+  const data = event.data.object as any;
+
+  const customerId = data.customer;
+  const subscriptionId = data.subscription;
+  const userId = data.metadata?.user_id;
+
+  console.log("🔥 CHECKOUT SESSION:", {
+    customerId,
+    subscriptionId,
+    userId,
+  });
+
+  if (!userId) {
+    console.error("❌ Missing user_id in metadata");
+    return NextResponse.json({ error: true });
+  }
+
+  await supabaseAdmin
+    .from("users")
+    .update({
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscriptionId,
+      plan: "starter",
+      subscription_status: "active",
+    })
+    .eq("id", userId);
+
+  return NextResponse.json({ success: true });
+}
   const data = event.data.object as any;
 
   console.log("💳 BILLING EVENT:", eventType);
@@ -82,25 +116,7 @@ export async function POST(req: Request) {
   /* =======================================================
      🎯 HANDLE EVENTS
   ======================================================= */
-if (eventType === "checkout.session.completed") {
-  const customerId = data.customer;
-  const subscriptionId = data.subscription;
 
-  console.log("🔥 CHECKOUT SESSION:", {
-    customerId,
-    subscriptionId,
-  });
-
-  await supabaseAdmin
-    .from("users")
-    .update({
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      plan: "starter",
-      subscription_status: "active",
-    })
-    .eq("id", user.id);
-}
  if (eventType === "customer.subscription.created") {
   await supabaseAdmin
     .from("users")

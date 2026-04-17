@@ -63,21 +63,30 @@ const supabase = createServerClient(
 
     // 4️⃣ Create checkout session
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      payment_method_types: ["card"],
-      metadata: {
-      user_id: user.id,
-      },
-      line_items: [
-        {
-          price: process.env.STRIPE_STARTER_PRICE_ID!,
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing/success`,
-cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing/cancel`,
-    });
+  customer: customerId,
+  mode: "subscription",
+  payment_method_types: ["card"],
+
+  metadata: {
+    user_id: user.id,
+  },
+
+  subscription_data: {
+    metadata: {
+      user_id: user.id, // 🔥 CRITICAL (propagates to subscription events)
+    },
+  },
+
+  line_items: [
+    {
+      price: process.env.STRIPE_STARTER_PRICE_ID!,
+      quantity: 1,
+    },
+  ],
+
+  success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing/success`,
+  cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing/cancel`,
+});
 
     return NextResponse.json({ url: session.url });
   } catch (err) {

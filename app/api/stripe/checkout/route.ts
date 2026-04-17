@@ -75,8 +75,8 @@ const supabase = createServerClient(
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing/success`,
+cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing/cancel`,
     });
 
     return NextResponse.json({ url: session.url });

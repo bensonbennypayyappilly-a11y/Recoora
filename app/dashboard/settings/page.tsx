@@ -94,11 +94,7 @@ function SidebarItem({
 /* ================= ACCOUNT SECTION ================= */
 
 function AccountSection() {
-  const [profile, setProfile] = useState({
-    fullName: "",
-    company: "",
-    email: "",
-  });
+ const [email, setEmail] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState("trial");
@@ -126,12 +122,7 @@ function AccountSection() {
       setPlan(data?.plan || "trial");
 setStatus(data?.subscription_status || "inactive");
 
-setProfile({
-  fullName: data?.full_name || "",
-  company: data?.company_name || "",
-  email: user.email || "",
-});
-
+setEmail(user.email || "");
       setLoading(false);
     };
 
@@ -154,6 +145,12 @@ setProfile({
 
           <div className="mt-1 text-xs text-emerald-400">
           Status: {status}
+
+{status === "canceling" && (
+  <div className="text-xs text-yellow-400 mt-1">
+    Cancels at period end
+  </div>
+)}
           </div>
           </div>
 
@@ -167,19 +164,10 @@ setProfile({
       </div>
 
       {/* PROFILE DISPLAY ONLY */}
-      <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
-        <div className="text-zinc-500 text-xs">Full Name</div>
-        <div className="mt-1 text-sm">{profile.fullName || "—"}</div>
-      </div>
-
-      <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
-        <div className="text-zinc-500 text-xs">Company Name</div>
-        <div className="mt-1 text-sm">{profile.company || "—"}</div>
-      </div>
-
+      
       <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
         <div className="text-zinc-500 text-xs">Email Address</div>
-        <div className="mt-1 text-sm">{profile.email || "—"}</div>
+        <div className="mt-1 text-sm">{email || "—"}</div>
       </div>
     </div>
   );
@@ -434,20 +422,25 @@ function BillingSection() {
             {plan === "trial" && (
               <button
                 onClick={async () => {
-                  const res = await fetch("/api/stripe/checkout", {
-                    method: "POST",
-                  });
-                  const data = await res.json();
-                  if (data.url) {
-                    window.location.href = data.url;
-                  }
-                }}
+  const res = await fetch("/api/stripe/checkout", {
+    method: "POST",
+  });
+
+  const data = await res.json();
+
+  if (data.url) {
+    window.location.href = data.url;
+  } else {
+    alert("Checkout failed");
+  }
+}}
                 className="bg-emerald-500 hover:bg-emerald-400 text-black px-6 py-3 rounded-xl font-semibold"
               >
                 Start Starter Plan
               </button>
             )}
 
+            
             {plan === "starter" && (
               <button
                 onClick={() =>
@@ -481,7 +474,7 @@ const res = await fetch("/api/stripe/cancel-subscription", {
 
                   const data = await res.json();
 
-                  if (data.error) {
+                  if (!data.success) {
                     alert("❌ " + data.error);
                   } else {
                     alert(

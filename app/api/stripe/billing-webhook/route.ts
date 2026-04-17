@@ -112,18 +112,7 @@ export async function POST(req: Request) {
       .eq("id", user.id);
   }
 
-  if (eventType === "customer.subscription.created") {
-    await supabaseAdmin
-      .from("users")
-      .update({
-        stripe_subscription_id: data.id,
-        subscription_status: data.status,
-        current_period_end: new Date(data.current_period_end * 1000).toISOString(),
-      })
-      .eq("id", user.id);
-  }
-
-  if (eventType === "customer.subscription.updated") {
+   if (eventType === "customer.subscription.updated") {
     await supabaseAdmin
       .from("users")
       .update({
@@ -134,14 +123,23 @@ export async function POST(req: Request) {
   }
 
   if (eventType === "customer.subscription.deleted") {
-    await supabaseAdmin
-      .from("users")
-      .update({
-        subscription_status: "canceled",
-        plan: "trial"
-      })
-      .eq("id", user.id);
-  }
+  await supabaseAdmin
+    .from("users")
+    .update({
+      subscription_status: "canceled",
+      plan: "trial",
+
+      // 🔥 CLEANUP
+      stripe_subscription_id: null,
+      current_period_end: null,
+      stripe_account_id: null,
+
+      // OPTIONAL (recommended)
+      // keep customer_id if you want reactivation
+      // stripe_customer_id: null,
+    })
+    .eq("id", user.id);
+}
 
   return NextResponse.json({ received: true });
 }

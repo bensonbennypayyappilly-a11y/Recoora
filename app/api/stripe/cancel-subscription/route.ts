@@ -59,22 +59,24 @@ if (!user) {
 
     // 🔥 Cancel at period end
     const subscription = await stripe.subscriptions.update(
-      subscriptionId,
-      {
-        cancel_at_period_end: true,
-      }
-    );
+  subscriptionId,
+  {
+    cancel_at_period_end: true,
+  }
+);
 
     const periodEnd = (subscription as any).current_period_end;
 
-    // 💾 Update DB
     await supabaseAdmin
-      .from("users")
-      .update({
-        subscription_status: "canceling",
-        current_period_end: new Date(periodEnd * 1000).toISOString(),
-      })
-      .eq("id", user.id);
+  .from("users")
+  .update({
+    subscription_status: "canceling",
+    current_period_end: new Date(periodEnd * 1000).toISOString(),
+
+    // 🔥 disconnect Stripe Connect
+    
+  })
+  .eq("id", user.id);
 
     return NextResponse.json({
       success: true,

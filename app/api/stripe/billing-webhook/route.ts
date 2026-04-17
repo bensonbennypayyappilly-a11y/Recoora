@@ -71,6 +71,7 @@ export async function POST(req: Request) {
     .from("users")
     .select("id")
     .eq("stripe_customer_id", stripeCustomerId)
+
     .maybeSingle();
 
   if (!user) {
@@ -81,7 +82,25 @@ export async function POST(req: Request) {
   /* =======================================================
      🎯 HANDLE EVENTS
   ======================================================= */
+if (eventType === "checkout.session.completed") {
+  const customerId = data.customer;
+  const subscriptionId = data.subscription;
 
+  console.log("🔥 CHECKOUT SESSION:", {
+    customerId,
+    subscriptionId,
+  });
+
+  await supabaseAdmin
+    .from("users")
+    .update({
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscriptionId,
+      plan: "starter",
+      subscription_status: "active",
+    })
+    .eq("id", user.id);
+}
  if (eventType === "customer.subscription.created") {
   await supabaseAdmin
     .from("users")

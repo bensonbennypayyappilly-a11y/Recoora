@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import UpgradeButton from "../../components/UpgradeButton";
 
 
 
@@ -97,7 +98,8 @@ function AccountSection() {
  const [email, setEmail] = useState("");
 
   const [loading, setLoading] = useState(true);
-  const [plan, setPlan] = useState("trial");
+  const [plan, setPlan] = useState<string | null>(null);
+const [subscription_status, setSubscriptionStatus] = useState<string>("inactive");
   const [status, setStatus] = useState("inactive");
 
   useEffect(() => {
@@ -153,13 +155,7 @@ setEmail(user.email || "");
 )}
           </div>
           </div>
-
-          <button
-            onClick={() => alert("🚧 Pro plan launching soon")}
-            className="text-emerald-400 text-sm hover:underline"
-          >
-            Upgrade
-          </button>
+<UpgradeButton plan={plan} status={subscription_status} />
         </div>
       </div>
 

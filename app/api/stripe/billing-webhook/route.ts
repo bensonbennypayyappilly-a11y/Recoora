@@ -215,6 +215,22 @@ if (rawPeriodEnd) {
     })
     .eq("id", user.id);
 }
+if (eventType === "customer.subscription.deleted") {
+  console.log("🔥 SUBSCRIPTION FULLY CANCELED");
 
+  await supabaseAdmin
+    .from("users")
+    .update({
+      subscription_status: "canceled",
+
+      // ✅ EMPTY STATE (NO TRIAL RESET)
+      plan: null,
+
+      // ✅ CLEANUP
+      stripe_subscription_id: null,
+      current_period_end: null,
+    })
+    .eq("id", user.id);
+}
   return NextResponse.json({ received: true });
 }

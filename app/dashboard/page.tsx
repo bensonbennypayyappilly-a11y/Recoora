@@ -37,6 +37,7 @@ export default function Dashboard() {
   const processedResolvedInvoices = useRef<Set<string>>(new Set());
   const processedInsertedInvoices = useRef<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
+  const [subscription_status, setSubscriptionStatus] = useState<string>("inactive");
   
 
   const isPro = plan === "pro";
@@ -47,16 +48,17 @@ export default function Dashboard() {
 const fetchDashboardData = async () => {
   /* ── Session + data fetch ── */
   
-          const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        window.location.href = "/login";
-        return;
-      }
-      setUserId(data.session.user.id);
+          const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+  window.location.href = "/login";
+  return;
+}
+
+setUserId(sessionData.session.user.id);
       const { data: userData } = await supabase
         .from("users")
         .select("plan, trial_ends_at, stripe_account_id, slack_connected")
-        .eq("id", data.session.user.id)
+        .eq("id", sessionData.session.user.id)
         .single();
 
       if (userData) {
@@ -67,7 +69,18 @@ const fetchDashboardData = async () => {
         stripeAccountIdRef.current = userData.stripe_account_id;
         setSlackConnected(!!userData.slack_connected);
       }
+  
+      const { data: billingData } = await supabase
+  .from("users")
+  .select("plan, subscription_status")
+  .eq("id", sessionData.session.user.id)
+  .single();
 
+if (billingData) {
+  setPlan(billingData.plan);
+  setSubscriptionStatus(billingData.subscription_status);
+}
+      
       const acctId = userData?.stripe_account_id;
       if (!acctId) {
         setCheckingSession(false);
@@ -87,7 +100,7 @@ const fetchDashboardData = async () => {
         .select(
           "id, stripe_event_id, event_type, customer_email, amount, created_at, action_status, plan_name, attempt_count, failure_reason, customer_risk_level, billing_reason, deleted_at, invoice_id"
            )
-        .eq("user_id", data.session.user.id)
+        .eq("user_id", sessionData.session.user.id)
         .is("deleted_at", null)
         .in("event_type", [
           "invoice.payment_failed",
@@ -107,7 +120,7 @@ const { data: allEvents } = await supabase
   .select(
     "event_type, amount, invoice_id, stripe_event_id, action_status, deleted_at"
   )
-  .eq("user_id", data.session.user.id)
+  .eq("user_id", sessionData.session.user.id)
   .gte("created_at", sinceDate.toISOString());
 
 
@@ -117,7 +130,7 @@ const { data: failedEvents } = await supabase
   .select(
     "event_type, amount, invoice_id, stripe_event_id, action_status, deleted_at"
   )
-  .eq("user_id", data.session.user.id)
+  .eq("user_id", sessionData.session.user.id)
   .eq("event_type", "invoice.payment_failed")
   .is("deleted_at", null)
   .gte(
@@ -262,6 +275,7 @@ setUnattended(unattendedAmount);
           // ✅ ADD: increase unattended on new failure
 const key = inserted.invoice_id ?? inserted.stripe_event_id;
 
+
 if (
   inserted.event_type === "invoice.payment_failed" &&
   inserted.action_status !== "contacted_slack" &&
@@ -272,6 +286,7 @@ if (
   if (processedInsertedInvoices.current.has(key)) {
   return;
 }
+
 
 processedInsertedInvoices.current.add(key);
 
@@ -525,7 +540,7 @@ if (
               Upgrade to continue monitoring your Stripe revenue in real-time.
             </p>
             <div className="mt-6">
-              <UpgradeButton />
+              <UpgradeButton plan={plan} status={subscription_status} />
             </div>
           </div>
         </div>

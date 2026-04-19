@@ -58,12 +58,11 @@ if (!user) {
     const subscriptionId = data.stripe_subscription_id;
 
     // 🔥 Cancel at period end
-    const subscription = await stripe.subscriptions.update(
-  subscriptionId,
-  {
-    cancel_at_period_end: true,
-  }
-);
+   console.log("🔧 Cancelling subscription:", subscriptionId);
+
+const subscription = await stripe.subscriptions.update(subscriptionId, {
+  cancel_at_period_end: true,
+});
 
     const periodEnd = (subscription as any).current_period_end;
 

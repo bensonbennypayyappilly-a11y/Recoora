@@ -101,12 +101,36 @@ if (event.type === "checkout.session.completed") {
     return NextResponse.json({ error: true });
   }
 
-  const { data: user, error } = await supabaseAdmin
+ let user = null;
+
+// 🔥 PRIMARY: metadata (reliable)
+const metadataUserId = data.metadata?.user_id;
+
+if (metadataUserId) {
+  const { data: metaUser } = await supabaseAdmin
+    .from("users")
+    .select("id")
+    .eq("id", metadataUserId)
+    .maybeSingle();
+
+  user = metaUser;
+}
+
+// 🔁 FALLBACK: customer_id (legacy support)
+if (!user && stripeCustomerId) {
+  const { data: customerUser } = await supabaseAdmin
     .from("users")
     .select("id")
     .eq("stripe_customer_id", stripeCustomerId)
-
     .maybeSingle();
+
+  user = customerUser;
+}
+
+if (!user) {
+  console.error("❌ No user found (metadata + customer lookup failed)");
+  return NextResponse.json({ error: true });
+}
 
   if (!user) {
     console.error("❌ No user for customer:", stripeCustomerId);
@@ -148,15 +172,16 @@ if (event.type === "checkout.session.completed") {
   }
 
    if (eventType === "customer.subscription.updated") {
-    await supabaseAdmin
-      .from("users")
-      .update({
-        subscription_status: data.status,
-        current_period_end: new Date(data.current_period_end * 1000).toISOString(),
-      })
-      .eq("id", user.id);
-  }
+  const isCanceling = data.cancel_at_period_end === true;
 
+  await supabaseAdmin
+    .from("users")
+    .update({
+      subscription_status: isCanceling ? "canceling" : data.status,
+      current_period_end: new Date(data.current_period_end * 1000).toISOString(),
+    })
+    .eq("id", user.id);
+}
   if (eventType === "customer.subscription.deleted") {
   await supabaseAdmin
     .from("users")

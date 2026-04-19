@@ -174,29 +174,18 @@ if (!user) {
    if (eventType === "customer.subscription.updated") {
   const isCanceling = data.cancel_at_period_end === true;
 
+  const periodEnd = data.current_period_end
+    ? new Date(data.current_period_end * 1000).toISOString()
+    : null;
+
+  console.log("📅 PERIOD END RAW:", data.current_period_end);
+  console.log("📅 PERIOD END ISO:", periodEnd);
+
   await supabaseAdmin
     .from("users")
     .update({
       subscription_status: isCanceling ? "canceling" : data.status,
-      current_period_end: new Date(data.current_period_end * 1000).toISOString(),
-    })
-    .eq("id", user.id);
-}
-  if (eventType === "customer.subscription.deleted") {
-  await supabaseAdmin
-    .from("users")
-    .update({
-      subscription_status: "canceled",
-      plan: "trial",
-
-      // 🔥 CLEANUP
-      stripe_subscription_id: null,
-      current_period_end: null,
-      stripe_account_id: null,
-
-      // OPTIONAL (recommended)
-      // keep customer_id if you want reactivation
-      // stripe_customer_id: null,
+      current_period_end: periodEnd,
     })
     .eq("id", user.id);
 }

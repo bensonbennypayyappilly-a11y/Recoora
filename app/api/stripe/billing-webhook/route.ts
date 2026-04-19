@@ -148,7 +148,9 @@ if (!user) {
       plan: "starter",
       stripe_subscription_id: data.id,
       subscription_status: data.status,
-      current_period_end: new Date(data.current_period_end * 1000).toISOString(),
+      current_period_end: data.current_period_end
+  ? new Date(data.current_period_end * 1000).toISOString()
+  : null,
     })
     .eq("id", user.id);
 }
@@ -174,12 +176,36 @@ if (!user) {
    if (eventType === "customer.subscription.updated") {
   const isCanceling = data.cancel_at_period_end === true;
 
-  const periodEnd = data.current_period_end
-    ? new Date(data.current_period_end * 1000).toISOString()
-    : null;
+  let periodEnd = null;
 
-  console.log("📅 PERIOD END RAW:", data.current_period_end);
-  console.log("📅 PERIOD END ISO:", periodEnd);
+  // ✅ Try direct value first
+  if (data.current_period_end) {
+    periodEnd = new Date(data.current_period_end * 1000).toISOString();
+  } else {
+    console.log("⚠️ Missing period_end → fetching from Stripe API");
+
+    try {
+    const subscription = await stripe.subscriptions.retrieve(
+      data.id
+) as unknown as Stripe.Subscription;
+      const sub = subscription as any;
+
+let rawPeriodEnd = sub.current_period_end;
+
+// 🔥 Fallback to item level if missing
+if (!rawPeriodEnd && sub.items?.data?.length > 0) {
+  rawPeriodEnd = sub.items.data[0].current_period_end;
+}
+
+if (rawPeriodEnd) {
+  periodEnd = new Date(rawPeriodEnd * 1000).toISOString();
+}
+    } catch (err) {
+      console.error("❌ Failed to fetch subscription from Stripe:", err);
+    }
+  }
+
+  console.log("📅 FINAL PERIOD END:", periodEnd);
 
   await supabaseAdmin
     .from("users")

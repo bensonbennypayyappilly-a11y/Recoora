@@ -98,9 +98,9 @@ function AccountSection() {
  const [email, setEmail] = useState("");
 
   const [loading, setLoading] = useState(true);
-  const [plan, setPlan] = useState<string | null>(null);
+  const [plan, setPlan] = useState<"trial" | "starter" | "pro" | null>(null);
 const [subscription_status, setSubscriptionStatus] = useState<string>("inactive");
-  const [status, setStatus] = useState("inactive");
+ 
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -121,8 +121,8 @@ const [subscription_status, setSubscriptionStatus] = useState<string>("inactive"
         .eq("id", user.id)
         .single();
 
-      setPlan(data?.plan || "trial");
-setStatus(data?.subscription_status || "inactive");
+      setPlan(data?.plan ?? null);
+setSubscriptionStatus(data?.subscription_status ?? "inactive");
 
 setEmail(user.email || "");
       setLoading(false);

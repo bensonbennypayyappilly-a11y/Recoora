@@ -34,53 +34,49 @@ export default function UpgradeButton({
     }
   };
 
-  const isStarter = plan === "starter";
+  // ✅ 1. ACTIVE STARTER (REAL SUBSCRIPTION)
+if (status === "active" && plan === "starter") {
+  return (
+    <button disabled className="...">
+      Current Plan (Starter)
+    </button>
+  );
+}
 
-  // ✅ 1. REACTIVATE (HIGHEST PRIORITY)
-  if (status === "canceled") {
-    return (
-      <button
-        onClick={handleUpgrade}
-        disabled={loading}
-        className="mt-6 inline-block rounded-lg bg-yellow-500 px-6 py-3 font-semibold text-black hover:bg-yellow-400 transition"
-      >
-        {loading ? "Redirecting..." : "Reactivate Account"}
-      </button>
-    );
-  }
-
-  // ✅ 2. CANCELING STATE (OPTIONAL BUT CORRECT)
-  if (status === "canceling") {
-    return (
-      <button
-        disabled
-        className="mt-6 inline-block rounded-lg bg-gray-600 px-6 py-3 font-semibold text-white opacity-50"
-      >
-        Canceling… Active until period end
-      </button>
-    );
-  }
-
-  // ✅ 3. ACTIVE STARTER
-  if (isStarter && status === "active") {
-    return (
-      <button
-        disabled
-        className="mt-6 inline-block rounded-lg bg-gray-600 px-6 py-3 font-semibold text-white opacity-50 cursor-not-allowed"
-      >
-        Upgrade to Pro (Coming Soon)
-      </button>
-    );
-  }
-
-  // ✅ 4. DEFAULT → TRIAL OR EMPTY
+// ✅ 2. REACTIVATE (CANCELED BUT HAD SUB)
+if (status === "canceled") {
   return (
     <button
       onClick={handleUpgrade}
       disabled={loading}
-      className="mt-6 inline-block rounded-lg bg-green-500 px-6 py-3 font-semibold text-black hover:bg-green-400 transition disabled:opacity-50"
+      className="mt-6 inline-block rounded-lg bg-yellow-500 px-6 py-3 font-semibold text-black hover:bg-yellow-400 transition"
     >
-      {loading ? "Redirecting..." : "Start Starter Plan"}
+      {loading ? "Redirecting..." : "Reactivate Subscription"}
     </button>
   );
+}
+
+// ✅ 3. PAST DUE (FAILED PAYMENT)
+if (status === "past_due") {
+  return (
+    <button
+      onClick={handleUpgrade}
+      disabled={loading}
+      className="mt-6 inline-block rounded-lg bg-red-500 px-6 py-3 font-semibold text-black hover:bg-red-400 transition"
+    >
+      {loading ? "Redirecting..." : "Fix Payment"}
+    </button>
+  );
+}
+
+// ✅ 4. DEFAULT → NEW USER / TRIAL / NO PLAN
+return (
+  <button
+    onClick={handleUpgrade}
+    disabled={loading}
+    className="mt-6 inline-block rounded-lg bg-green-500 px-6 py-3 font-semibold text-black hover:bg-green-400 transition disabled:opacity-50"
+  >
+    {loading ? "Redirecting..." : "Start Starter Plan"}
+  </button>
+);
 }

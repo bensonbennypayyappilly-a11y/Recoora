@@ -10,6 +10,7 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
 
   const [validations, setValidations] = useState({
     length: false,
@@ -19,23 +20,23 @@ export default function ResetPasswordPage() {
     special: false,
   });
 
-  // ✅ Handle token from email
   useEffect(() => {
   const handleAuth = async () => {
     const url = new URL(window.location.href);
     const code = url.searchParams.get("code");
 
     if (!code) {
-      console.error("No code found in URL");
+      setError("Invalid or expired reset link.");
       return;
     }
 
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      console.error("Session exchange failed:", error.message);
+      setError("Reset link is invalid or expired.");
+      console.error(error.message);
     } else {
-      console.log("Session created:", data);
+      setSessionReady(true); // ✅ VERY IMPORTANT
     }
   };
 
@@ -72,22 +73,48 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    setLoading(true);
+   setLoading(true);
 
-    const { error } = await supabase.auth.updateUser({
-      password,
-    });
+// ✅ Check session FIRST
+const {
+  data: { session },
+} = await supabase.auth.getSession();
 
-    if (error) {
-      // 🔥 Handles "same password" or other issues
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
+if (!session) {
+  setError("Session expired. Please request a new reset link.");
+  setLoading(false);
+  return;
+}
+
+// ✅ Then update password
+const { error } = await supabase.auth.updateUser({
+  password,
+});
+
+if (error) {
+  setError(error.message);
+  setLoading(false);
+  return;
+}
 
     setSuccess(true);
     setLoading(false);
   };
+
+  if (!sessionReady && !error) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p>Verifying reset link...</p>
+    </div>
+  );
+
+  if (!error) {
+  setSuccess(true);
+  setTimeout(() => {
+    window.location.href = "/login";
+  }, 2000);
+}
+}
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
@@ -150,12 +177,12 @@ export default function ResetPasswordPage() {
           )}
 
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-500 hover:bg-emerald-400 text-black py-2 rounded-xl font-semibold"
-          >
-            {loading ? "Updating..." : "Update Password"}
-          </button>
+  type="submit"
+  disabled={loading || !sessionReady}
+  className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black py-2 rounded-xl font-semibold"
+>
+  {!sessionReady ? "Verifying link..." : loading ? "Updating..." : "Update Password"}
+</button>
 
         </form>
       </div>

@@ -21,15 +21,25 @@ export default function ResetPasswordPage() {
 
   // ✅ Handle token from email
   useEffect(() => {
-  const init = async () => {
-    const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+  const handleAuth = async () => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+
+    if (!code) {
+      console.error("No code found in URL");
+      return;
+    }
+
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      console.error("Session error:", error.message);
+      console.error("Session exchange failed:", error.message);
+    } else {
+      console.log("Session created:", data);
     }
   };
 
-  init();
+  handleAuth();
 }, []);
 
   // ✅ Password strength validation

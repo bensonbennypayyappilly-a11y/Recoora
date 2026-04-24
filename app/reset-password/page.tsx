@@ -21,33 +21,18 @@ export default function ResetPasswordPage() {
   });
 
   useEffect(() => {
-  let executed = false;
-
-  const handleAuth = async () => {
-    if (executed) return;
-    executed = true;
-
-    console.log("EXCHANGE CALLED");
-
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get("code");
-
-    if (!code) {
-      setError("Invalid or expired reset link.");
-      return;
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        console.log("Recovery session set");
+        setSessionReady(true);
+      }
     }
+  );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (error) {
-      console.error("EXCHANGE FAILED:", error.message);
-      setError("This link may have expired or already been used.");
-    } else {
-      setSessionReady(true);
-    }
+  return () => {
+    listener.subscription.unsubscribe();
   };
-
-  handleAuth();
 }, []);
 
   // ✅ Password strength validation

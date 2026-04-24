@@ -21,7 +21,14 @@ export default function ResetPasswordPage() {
   });
 
   useEffect(() => {
+  let executed = false;
+
   const handleAuth = async () => {
+    if (executed) return;
+    executed = true;
+
+    console.log("EXCHANGE CALLED");
+
     const url = new URL(window.location.href);
     const code = url.searchParams.get("code");
 
@@ -33,10 +40,10 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      setError("Reset link is invalid or expired.");
-      console.error(error.message);
+      console.error("EXCHANGE FAILED:", error.message);
+      setError("This link may have expired or already been used.");
     } else {
-      setSessionReady(true); // ✅ VERY IMPORTANT
+      setSessionReady(true);
     }
   };
 

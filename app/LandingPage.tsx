@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface Feature {
   icon: React.ReactNode;
@@ -10,14 +9,7 @@ interface Feature {
   desc: string;
   accent: string;
   iconColor: string;
-}
-
-interface Testimonial {
-  name: string;
-  role: string;
-  avatar: string;
-  text: string;
-  color: string;
+  badge?: string;
 }
 
 interface FaqItem {
@@ -27,8 +19,8 @@ interface FaqItem {
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState<boolean>(false);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [annual, setAnnual] = useState<boolean>(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -36,18 +28,49 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisibleSections((prev) => new Set([...prev, entry.target.id]));
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+    document.querySelectorAll("[data-animate]").forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   const faqs: FaqItem[] = [
     {
+      q: "Is this safe? What access does Recoora get to my Stripe?",
+      a: "Recoora uses Stripe's read-only OAuth scope. We can see events (like payment failures) but we cannot charge cards, refund payments, modify subscriptions, or access full card numbers. We literally cannot touch your money. You can revoke access from Stripe's dashboard at any time in one click.",
+    },
+    {
+      q: "Does Stripe already send me failed payment notifications?",
+      a: "Stripe sends email notifications for successful charges only — not failed ones. For failure alerts, Stripe's documentation literally tells you to build your own webhook application. That's what Recoora is — but done in 5 minutes instead of days, delivered to Slack where you actually work, with a recovery email ready to send.",
+    },
+    {
       q: "Is this a Stripe analytics dashboard?",
-      a: "No. Recoora isn't another dashboard you'll forget to open. It's a background watchdog that pushes alerts to you — in Slack (email coming soon) — the moment something important changes. Think of it as a smoke detector for your revenue.",
+      a: "No. Recoora isn't another dashboard you'll forget to open. It's a background watchdog that pushes alerts to you — in Slack — the moment something important changes. Think of it as a smoke detector for your revenue.",
     },
     {
       q: "Do I need to give full API access?",
-      a: "We connect to your Stripe account via OAuth and only use access to listen to webhook events — we never initiate charges, never modify customer data, and never access your payout settings. Your tokens are encrypted at rest. You can disconnect at any time from your Stripe dashboard.",
+      a: "We connect via OAuth and only listen to webhook events — we never initiate charges, never modify customer data, and never access your payout settings. Your tokens are encrypted at rest. You can disconnect at any time from your Stripe dashboard.",
+    },
+    {
+      q: "What is the AI recovery email feature exactly?",
+      a: "Coming in the Growth plan. Instead of a generic 'your payment failed' email, Recoora's AI writes a personalized message using the customer's name, their plan details, and a natural conversational tone — so it reads like you wrote it yourself. Generic dunning emails get 20% open rates. Personal ones get 50–70%. That difference recovers real money.",
     },
     {
       q: "Can I cancel anytime?",
       a: "Yes. No contracts, no cancellation fees. Cancel from your dashboard in two clicks and your account closes at the end of the billing period. We'll even remind you 3 days before renewal.",
+    },
+    {
+      q: "I only have a few customers. Is this worth it at my stage?",
+      a: "Especially worth it at early stage. When you have 20 customers, losing one to a failed payment is a 5% churn event. At $11/month, recovering one $29/month subscriber in your first week makes Recoora free for the next 2.5 months. The earlier you plug the leak, the more MRR you protect.",
     },
     {
       q: "Does this replace Baremetrics or other analytics tools?",
@@ -59,13 +82,13 @@ export default function LandingPage() {
     {
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
         </svg>
       ),
       title: "Instant Payment Failure Alerts",
-      desc: "Know the moment a payment fails so you can act before the customer churns.",
-      accent: "from-emerald-500/20 to-teal-500/20",
-      iconColor: "text-emerald-400",
+      desc: "The moment Stripe registers a declined charge, you know about it. Not 3 hours later when you check your dashboard — within seconds. Every failed payment is an opportunity to recover before the customer moves on.",
+      accent: "from-amber-500/10 to-orange-500/10",
+      iconColor: "text-amber-400",
     },
     {
       icon: (
@@ -73,35 +96,44 @@ export default function LandingPage() {
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
         </svg>
       ),
-      title: "Know When Customers Leave",
-      desc: "Get alerted immediately when a subscription cancels so you can respond before it's too late.",
-      accent: "from-rose-500/20 to-pink-500/20",
+      title: "Cancellation Alerts — Before They're Gone",
+      desc: "When a customer cancels, the first 15 minutes are critical. A personal response in that window recovers 30–40% of cancellations. Recoora puts that window in your hands, every time.",
+      accent: "from-rose-500/10 to-pink-500/10",
       iconColor: "text-rose-400",
     },
     {
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
         </svg>
       ),
-      title: "Recover Failed Payments Fast",
-      desc: "Every failed charge is recoverable. Reach out instantly with a prefilled email in 2 clicks.",
-      accent: "from-amber-500/20 to-orange-500/20",
-      iconColor: "text-amber-400",
+      title: "2-Click Recovery Emails",
+      desc: "Every alert includes a pre-filled, editable recovery email — the customer's name, the amount, their email pre-loaded. You review, adjust if needed, and send. Done in under 90 seconds.",
+      accent: "from-emerald-500/10 to-teal-500/10",
+      iconColor: "text-emerald-400",
+    },
+    {
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+        </svg>
+      ),
+      title: "AI-Personalized Recovery Emails",
+      desc: "Generic dunning emails get ignored. AI-written emails that feel personal — referencing the customer by name, their plan, their context — get read, get clicked, and get payments recovered. Not a template. A real human-sounding message every time.",
+      accent: "from-violet-500/10 to-purple-500/10",
+      iconColor: "text-violet-400",
+      badge: "Coming in Growth plan",
     },
   ];
 
-  const testimonials: Testimonial[] = [];
-    
-
   return (
-    <div className="min-h-screen bg-white text-zinc-900 font-sans antialiased">
-        <style>{`
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans antialiased">
+      <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
         * { font-family: 'DM Sans', sans-serif; }
         .font-display { font-family: 'Syne', sans-serif; }
         .gradient-text {
-          background: linear-gradient(135deg, #0f0f0f 0%, #3f3f46 100%);
+          background: linear-gradient(135deg, #f4f4f5 0%, #a1a1aa 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -112,25 +144,28 @@ export default function LandingPage() {
           -webkit-text-fill-color: transparent;
           background-clip: text;
         }
-        .glow-green { box-shadow: 0 0 40px rgba(52, 211, 153, 0.15); }
+        .glow-green { box-shadow: 0 0 40px rgba(52, 211, 153, 0.18); }
         .card-border { border: 1px solid rgba(255,255,255,0.07); }
-        .noise::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-          pointer-events: none;
-          opacity: 0.4;
-        }
+
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-8px); }
         }
         @keyframes pulse-ring {
           0% { transform: scale(0.95); opacity: 1; }
-          100% { transform: scale(1.4); opacity: 0; }
+          100% { transform: scale(1.5); opacity: 0; }
         }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+
         .float { animation: float 4s ease-in-out infinite; }
+
         .pulse-dot::after {
           content: '';
           position: absolute;
@@ -139,104 +174,153 @@ export default function LandingPage() {
           background: #34d399;
           animation: pulse-ring 1.5s ease-out infinite;
         }
+
+        .animate-fade-up {
+          animation: fadeUp 0.6s ease both;
+        }
+        .animate-fade-up-1 { animation: fadeUp 0.6s 0.1s ease both; opacity: 0; }
+        .animate-fade-up-2 { animation: fadeUp 0.6s 0.2s ease both; opacity: 0; }
+        .animate-fade-up-3 { animation: fadeUp 0.6s 0.3s ease both; opacity: 0; }
+        .animate-fade-up-4 { animation: fadeUp 0.6s 0.4s ease both; opacity: 0; }
+
+        .roi-card {
+          background: linear-gradient(135deg, rgba(52,211,153,0.06) 0%, rgba(16,185,129,0.03) 100%);
+          border: 1px solid rgba(52,211,153,0.15);
+        }
+
+        .comparison-row:hover td {
+          background: rgba(255,255,255,0.02);
+        }
+
+        .ai-email-card {
+          background: linear-gradient(135deg, rgba(139,92,246,0.06) 0%, rgba(109,40,217,0.03) 100%);
+          border: 1px solid rgba(139,92,246,0.15);
+        }
+
+        /* Mobile menu */
+        @media (max-width: 640px) {
+          .nav-links-desktop { display: none; }
+          .hero-title { font-size: 2.8rem !important; letter-spacing: -0.05em; }
+          .hero-sub { font-size: 1.05rem !important; }
+          .steps-grid { grid-template-columns: 1fr !important; }
+          .features-grid { grid-template-columns: 1fr !important; }
+          .pricing-grid { grid-template-columns: 1fr !important; }
+          .comp-table-wrap { overflow-x: auto; }
+          .roi-grid { grid-template-columns: 1fr 1fr !important; }
+          .ai-grid { grid-template-columns: 1fr !important; }
+          .footer-inner { flex-direction: column; align-items: flex-start; gap: 1rem; }
+          .footer-links { flex-wrap: wrap; gap: 1rem; }
+          .trust-row { flex-direction: column; gap: 0.5rem; align-items: center; }
+        }
+
+        @media (max-width: 768px) {
+          .comp-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .comp-table { min-width: 560px; }
+        }
       `}</style>
 
-      {/* Sticky Navbar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-[#09090b]/95 backdrop-blur-xl border-b border-white/5 py-3" : "bg-transparent py-5"}`}>
+      {/* ═══════════════════════════════════════
+          NAV
+      ═══════════════════════════════════════ */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled ? "bg-[#09090b]/95 backdrop-blur-xl border-b border-white/5 py-3" : "bg-transparent py-5"
+      }`}>
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Recoora" className="w-11 h-11 rounded-md" />
-            <span className="font-display font-700 text-lg tracking-tight text-white">Recoora</span>
+            <img src="/logo.png" alt="Recoora" className="w-9 h-9 rounded-md" />
+            <span className="font-display font-bold text-lg tracking-tight text-white">Recoora</span>
           </div>
-          
-          <div className="flex items-center gap-4">
 
-  {/* Sign In (Outlined Green → Fills on Hover) */}
-  <a
-    href="/login"
-    className="
-      border border-emerald-500
-      text-emerald-500
-      px-5 py-2.5
-      rounded-xl
-      text-sm
-      font-semibold
-      transition-all duration-200
-      hover:bg-emerald-500
-      hover:text-black
-    "
-  >
-    Sign in
-  </a>
+          <div className="nav-links-desktop hidden md:flex items-center gap-8">
+            {[
+              { label: "Features", href: "#features" },
+              { label: "How it works", href: "#how-it-works" },
+              { label: "Pricing", href: "#pricing" },
+              { label: "FAQ", href: "#faq" },
+            ].map((l) => (
+              <a key={l.label} href={l.href} className="text-zinc-400 hover:text-white text-sm transition-colors duration-200">
+                {l.label}
+              </a>
+            ))}
+          </div>
 
-  {/* Start Monitoring (Filled Green) */}
-  <a
-    href="#pricing"
-    className="
-      bg-emerald-500
-      hover:bg-emerald-400
-      text-black
-      text-sm
-      font-semibold
-      px-5 py-2.5
-      rounded-xl
-      transition-all duration-200
-      hover:shadow-lg
-      hover:shadow-emerald-500/25
-    "
-  >
-    Start Free Trial
-  </a>
-
-</div>
+          <div className="flex items-center gap-3">
+            <a
+              href="/login"
+              className="border border-emerald-500 text-emerald-500 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-emerald-500 hover:text-black"
+            >
+              Sign in
+            </a>
+            <a
+              href="#pricing"
+              className="bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-semibold px-4 py-2 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/25"
+            >
+              Start Free Trial
+            </a>
+          </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="relative pt-32 pb-20 px-6 overflow-hidden">
-        {/* bg glow */}
+      {/* ═══════════════════════════════════════
+          HERO
+      ═══════════════════════════════════════ */}
+      <section className="relative pt-32 pb-16 px-6 overflow-hidden">
+        {/* Background glows */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute top-20 left-1/4 w-72 h-72 bg-teal-500/5 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute top-40 right-1/4 w-64 h-64 bg-rose-500/4 rounded-full blur-[100px] pointer-events-none" />
 
         <div className="max-w-5xl mx-auto text-center relative">
-          <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 mb-8">
+
+          {/* Badge */}
+          <div className="animate-fade-up inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 mb-8">
             <span className="relative w-2 h-2 bg-emerald-400 rounded-full pulse-dot" />
             <span className="text-xs text-zinc-400 font-medium tracking-wide">Early access — Limited beta spots</span>
           </div>
 
-          <h1 className="font-display text-6xl md:text-8xl font-800 tracking-tight mb-4 leading-none">
-            <span className="gradient-text">Stripe alerts when revenue breaks.</span>
-             <br />
-             <span className="accent-text">Fix it before it compounds.</span>
+          {/* Headline — updated copy */}
+          <h1 className="hero-title animate-fade-up-1 font-display text-6xl md:text-8xl font-extrabold tracking-tight mb-4 leading-none">
+            <span className="gradient-text">Your Stripe revenue<br />is leaking </span>
+            <span className="accent-text italic">silently.</span>
+            <br />
+            <span className="gradient-text">Fix it in </span>
+            <span className="accent-text">seconds.</span>
           </h1>
 
-          <p className="text-zinc-400 text-xl md:text-2xl font-300 max-w-2xl mx-auto mt-6 mb-10 leading-relaxed">
-            Get alerted the moment a payment fails or a customer cancels — 
-            and recover it in 2 clicks.
+          <p className="hero-sub animate-fade-up-2 text-zinc-400 text-xl md:text-2xl font-light max-w-2xl mx-auto mt-6 mb-3 leading-relaxed">
+            Get alerted the <strong className="text-zinc-200 font-medium">moment a payment fails or a customer cancels</strong> — and recover it before they're gone. Built for indie founders who can't afford to miss a single dollar.
           </p>
-          <p className="text-zinc-500 text-sm mt-4">
-  Powered by real Stripe webhooks — not estimates or dashboards.
-</p>
-          <div className="flex flex-col items-center gap-4 mb-8">
-            <a href="#pricing" className="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-10 py-4 rounded-xl text-base transition-all duration-200 glow-green hover:shadow-emerald-500/30 hover:shadow-xl">
+
+          <p className="animate-fade-up-2 text-zinc-500 text-sm mb-10">
+            Powered by real Stripe webhooks — not estimates or dashboards.
+          </p>
+
+          {/* CTAs */}
+          <div className="animate-fade-up-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <a
+              href="#pricing"
+              className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-10 py-4 rounded-xl text-base transition-all duration-200 glow-green hover:shadow-emerald-500/30 hover:shadow-xl"
+            >
               Start Free Trial →
             </a>
             <a
-  href="#how-it-works"
-  className="border border-zinc-300 hover:border-zinc-400 text-zinc-700 font-medium px-6 py-3 rounded-xl text-sm transition-all duration-200 hover:bg-zinc-100"
->
-  See How It Works
-</a>
+              href="#how-it-works"
+              className="w-full sm:w-auto border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-white font-medium px-6 py-4 rounded-xl text-sm transition-all duration-200 hover:bg-white/5 text-center"
+            >
+              See How It Works
+            </a>
           </div>
-             
-             <div className="flex items-center justify-center gap-4 mt-4 text-zinc-400 text-xs max-w-md mx-auto text-center">
-  <span>✓ Read-only Stripe access</span>
-  <span>✓ No billing permissions</span>
-  <span>✓ Setup in under 5 minutes</span>
-</div>
 
-          {/* Product Mockup */}
-          <div className="float max-w-3xl mx-auto mt-6">
+          {/* Trust row */}
+          <div className="trust-row animate-fade-up-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-2 text-zinc-400 text-xs">
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> Read-only Stripe access</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> No billing permissions</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> Setup in under 5 minutes</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 14-day free trial</span>
+          </div>
+
+          {/* Product Mockup — removed bottom stats row */}
+          <div className="float max-w-3xl mx-auto mt-12">
             <div className="relative bg-zinc-900 card-border rounded-2xl p-1 shadow-2xl shadow-black/60">
               {/* Window chrome */}
               <div className="bg-zinc-800/50 rounded-xl px-4 py-3 flex items-center gap-2 mb-1">
@@ -250,33 +334,44 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="bg-zinc-950 rounded-xl p-6 grid grid-cols-3 gap-4">
+              <div className="bg-zinc-950 rounded-xl p-4 md:p-6">
                 {/* Stat cards */}
-                {[
-                  { label: "Events (24h)", value: "18", change: "Live tracking", up: true },
-                  { label: "Alerts Sent", value: "6", change: "Slack delivered", up: true },
-                  { label: "Failed Payments", value: "3", change: "Action required", up: false },
-                ].map((stat) => (
-                  <div key={stat.label} className="bg-zinc-900 card-border rounded-xl p-4 text-left">
-                    <div className="text-zinc-500 text-xs mb-1">{stat.label}</div>
-                    <div className="font-display font-700 text-xl text-white">{stat.value}</div>
-                    <div className={`text-xs mt-1 ${stat.up ? "text-emerald-400" : "text-amber-400"}`}>{stat.change}</div>
-                  </div>
-                ))}
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  {[
+                    { label: "Events (24h)", value: "18", change: "Live tracking", up: true },
+                    { label: "Alerts Sent", value: "6", change: "Slack delivered", up: true },
+                    { label: "Failed Payments", value: "3", change: "Action required", up: false },
+                  ].map((stat) => (
+                    <div key={stat.label} className="bg-zinc-900 card-border rounded-xl p-3 md:p-4 text-left">
+                      <div className="text-zinc-500 text-xs mb-1">{stat.label}</div>
+                      <div className="font-display font-bold text-lg md:text-xl text-white">{stat.value}</div>
+                      <div className={`text-xs mt-1 ${stat.up ? "text-emerald-400" : "text-amber-400"}`}>{stat.change}</div>
+                    </div>
+                  ))}
+                </div>
 
                 {/* Alert feed */}
-                <div className="col-span-3 bg-zinc-900 card-border rounded-xl p-4">
-                  <div className="text-zinc-500 text-xs mb-3 font-medium uppercase tracking-wider">Example alerts from a connected Stripe account</div>
-                  <div className="space-y-2">
+                <div className="bg-zinc-900 card-border rounded-xl p-4">
+                  <div className="text-zinc-500 text-xs mb-3 font-medium uppercase tracking-wider">
+                    Example alerts from a connected Stripe account
+                  </div>
+                  <div className="space-y-2.5">
                     {[
-                      { time: "2m ago", msg: "Payment Failed — $149 — customer@email.com", color: "text-amber-400", icon: "⚠" },
-                      { time: "14m ago", msg: "Payment Received — $39", color: "text-emerald-400", icon: "✓" },
-                      { time: "1h ago", msg: "Subscription Cancelled — $29 - customer@email.com", color: "text-rose-400", icon: "↓" },
+                      { time: "2m ago", msg: "Payment Failed — $149 — customer@email.com", color: "text-amber-400", icon: "⚠", actionable: true },
+                      { time: "14m ago", msg: "Payment Received — $391", color: "text-emerald-400", icon: "✓", actionable: false },
+                      { time: "1h ago", msg: "Subscription Cancelled — $29 — customer@email.com", color: "text-rose-400", icon: "↓", actionable: true },
                     ].map((alert, i) => (
                       <div key={i} className="flex items-center gap-3 text-sm">
-                        <span className={`${alert.color} font-bold w-4 text-center`}>{alert.icon}</span>
-                        <span className="text-zinc-300 flex-1 text-left">{alert.msg}</span>
-                        <span className="text-zinc-600 text-xs shrink-0">{alert.time}</span>
+                        <span className={`${alert.color} font-bold w-4 text-center shrink-0`}>{alert.icon}</span>
+                        <span className="text-zinc-300 flex-1 text-left text-xs md:text-sm truncate">{alert.msg}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {alert.actionable && (
+                            <span className="hidden sm:inline-block text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                              Recover →
+                            </span>
+                          )}
+                          <span className="text-zinc-600 text-xs">{alert.time}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -287,13 +382,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Social Proof */}
-      <section className="py-16 px-6 border-y border-white/5">
+      {/* ═══════════════════════════════════════
+          SOCIAL PROOF STRIP
+      ═══════════════════════════════════════ */}
+      <section className="py-14 px-6 border-y border-white/5">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-zinc-500 text-sm uppercase tracking-widest mb-8 font-medium">Built for indie SaaS founders</p>
-          <div className="flex flex-wrap items-center justify-center gap-6">
+          <p className="text-zinc-500 text-xs uppercase tracking-widest mb-7 font-medium">Built for indie SaaS founders</p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
             {["Micro SaaS", "Solo Founders", "Indie Hackers", "Bootstrappers", "Side Projects"].map((label) => (
-              <div key={label} className="bg-white/5 border border-white/8 rounded-xl px-5 py-2.5 text-zinc-400 text-sm font-medium">
+              <div key={label} className="bg-white/5 border border-white/8 rounded-xl px-5 py-2.5 text-zinc-400 text-sm font-medium hover:border-emerald-500/30 hover:text-zinc-200 transition-all duration-200">
                 {label}
               </div>
             ))}
@@ -301,195 +398,407 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-display text-4xl md:text-5xl font-800 gradient-text mb-4">Built for revenue-critical events</h2>
-            <p className="text-zinc-400 text-lg max-w-xl mx-auto">Covers the only events that actually lose you money: failed payments and cancellations.</p>
+      {/* ═══════════════════════════════════════
+          ROI BANNER (NEW)
+      ═══════════════════════════════════════ */}
+      <section className="py-14 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="roi-card rounded-2xl p-6 md:p-10 flex flex-col md:flex-row items-start md:items-center gap-8">
+            <div className="flex-1">
+              <div className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-3 font-display">The math is simple</div>
+              <h3 className="font-display text-2xl md:text-3xl font-bold text-white mb-3 leading-tight">
+                One recovered payment.<br />Months of Recoora paid for.
+              </h3>
+              <p className="text-zinc-400 text-sm leading-relaxed max-w-md">
+                At $11/month, a single $29 subscription recovered pays for nearly 3 months. The ROI is immediate and obvious — no spreadsheet needed.
+              </p>
+            </div>
+            <div className="roi-grid grid grid-cols-3 gap-3 w-full md:w-auto md:shrink-0">
+              {[
+                { value: "9%", label: "avg MRR lost to\nfailed payments", color: "text-rose-400" },
+                { value: "$11", label: "cost per month\nto fix it", color: "text-amber-400" },
+                { value: "∞", label: "ROI after first\nrecovery", color: "text-emerald-400" },
+              ].map((s) => (
+                <div key={s.label} className="bg-zinc-900/80 card-border rounded-xl p-4 text-center min-w-[90px]">
+                  <div className={`font-display text-2xl md:text-3xl font-bold mb-1.5 ${s.color}`}>{s.value}</div>
+                  <div className="text-zinc-500 text-xs leading-tight whitespace-pre-line">{s.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════
+          FEATURES (EXPANDED — 4 cards)
+      ═══════════════════════════════════════ */}
+      <section id="features" className="py-20 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-4 font-display">Features</p>
+            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">Everything you need.<br />Nothing you don't.</h2>
+            <p className="text-zinc-400 text-lg max-w-xl mx-auto">
+              Covers the only events that actually lose you money — and makes recovery effortless.
+            </p>
+          </div>
+          <div className="features-grid grid md:grid-cols-2 gap-5">
             {features.map((f) => (
-              <div key={f.title} className={`relative bg-gradient-to-br ${f.accent} bg-zinc-900 card-border rounded-2xl p-8 hover:border-white/15 transition-all duration-300 group`}>
-                <div className={`${f.iconColor} mb-6 p-3 bg-white/5 rounded-xl inline-block`}>{f.icon}</div>
-                <h3 className="font-display font-700 text-xl text-white mb-3">{f.title}</h3>
+              <div
+                key={f.title}
+                className={`relative bg-gradient-to-br ${f.accent} bg-zinc-900 card-border rounded-2xl p-7 md:p-8 hover:border-white/15 transition-all duration-300 group`}
+              >
+                <div className={`${f.iconColor} mb-5 p-3 bg-white/5 rounded-xl inline-block group-hover:scale-110 transition-transform duration-200`}>
+                  {f.icon}
+                </div>
+                <h3 className="font-display font-bold text-xl text-white mb-3">{f.title}</h3>
                 <p className="text-zinc-400 text-sm leading-relaxed">{f.desc}</p>
+                {f.badge && (
+                  <div className="mt-4 inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium px-3 py-1.5 rounded-lg">
+                    <span>✦</span> {f.badge}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-<section id="how-it-works" className="py-24 px-6 bg-white">
-  <div className="max-w-4xl mx-auto">
-    <div className="text-center mb-16">
-      <h2 className="font-display text-4xl md:text-5xl font-800 text-black mb-4">
-        Set up in minutes
-      </h2>
-      <p className="text-gray-600 text-lg">
-        No engineering required. No complex setup.
-      </p>
-    </div>
-
-    <div className="relative">
-      <div className="hidden md:block absolute top-8 left-[16.5%] right-[16.5%] h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-
-      <div className="grid md:grid-cols-3 gap-8">
-        {[
-          {
-            step: "01",
-            title: "Connect Stripe",
-            desc: "Connect via Stripe OAuth in one click. We only listen to events — we never touch your billing or customer data.",
-          },
-          {
-            step: "02",
-            title: "Automatic Detection",
-            desc: "We detect failed payments and cancellations automatically — no configuration needed.",
-          },
-          {
-            step: "03",
-            title: "Get Notified Instantly",
-            desc: "Alerts land in Slack within seconds. You act. You fix it.",
-          },
-        ].map((item) => (
-          <div
-            key={item.step}
-            className="text-center relative bg-gray-50 border border-gray-200 rounded-2xl p-8 shadow-sm hover:shadow-md transition-all duration-300"
-          >
-            <div className="w-16 h-16 bg-emerald-100 border border-emerald-300 rounded-2xl flex items-center justify-center mx-auto mb-5">
-              <span className="font-display font-800 text-emerald-600 text-lg">
-                {item.step}
-              </span>
-            </div>
-
-            <h3 className="font-display font-700 text-xl text-black mb-3">
-              {item.title}
-            </h3>
-
-            <p className="text-gray-600 text-sm leading-relaxed">
-              {item.desc}
+      {/* ═══════════════════════════════════════
+          HOW IT WORKS
+      ═══════════════════════════════════════ */}
+      <section id="how-it-works" className="py-20 px-6 bg-zinc-900/40">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-4 font-display">How it works</p>
+            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">
+              Up and running<br />in under 5 minutes.
+            </h2>
+            <p className="text-zinc-400 text-lg">
+              No engineering required. No complex setup.
             </p>
           </div>
-        ))}
-      </div>
-    </div>
-  </div>
-</section>
-
-      {/* Pricing */}
-<section id="pricing" className="py-24 px-6">
-  <div className="max-w-3xl mx-auto text-center">
-
-    {/* Header */}
-    <div className="mb-16">
-      <h2 className="font-display text-4xl md:text-5xl font-800 gradient-text mb-4">
-        Stop revenue leaks before they cost you
-      </h2>
-
-      <p className="text-emerald-400 text-sm font-medium">
-        14-day free trial — no credit card required
-      </p>
-
-      <p className="text-zinc-400 text-lg mt-3">
-        One recovered payment pays for months of monitoring.
-      </p>
-    </div>
-
-    {/* Card */}
-    <div className="flex justify-center">
-      <div className="w-full max-w-md">
-
-        <div className="
-          relative
-          bg-gradient-to-b from-zinc-900 to-black
-          border border-white/10
-          rounded-2xl
-          p-8
-          shadow-[0_20px_60px_rgba(0,0,0,0.8)]
-          hover:shadow-[0_30px_80px_rgba(16,185,129,0.15)]
-          transition-all duration-300
-        ">
-
-          {/* Glow */}
-          <div className="absolute inset-0 rounded-2xl bg-emerald-500/5 blur-2xl opacity-20 pointer-events-none"></div>
 
           <div className="relative">
+            <div className="hidden md:block absolute top-10 left-[18%] right-[18%] h-px bg-gradient-to-r from-transparent via-zinc-700 to-transparent" />
+            <div className="steps-grid grid md:grid-cols-3 gap-5">
+              {[
+                {
+                  step: "01",
+                  icon: "🔗",
+                  title: "Connect Stripe",
+                  desc: "Connect via Stripe OAuth in one click. Read-only access only — we never touch your billing or customer data.",
+                  badge: "Zero billing permissions",
+                },
+                {
+                  step: "02",
+                  icon: "🎯",
+                  title: "Automatic Detection",
+                  desc: "The moment a payment fails or a subscription cancels, Recoora catches it via real Stripe webhooks — not polling, not estimates.",
+                  badge: "Powered by webhooks",
+                },
+                {
+                  step: "03",
+                  icon: "⚡",
+                  title: "Get Notified. Recover.",
+                  desc: "Alert hits Slack in seconds. Click to open a pre-filled recovery email. Send it. Most recoveries happen before the customer even notices.",
+                  badge: "2-click recovery",
+                },
+              ].map((item) => (
+                <div
+                  key={item.step}
+                  className="text-center bg-zinc-900 card-border rounded-2xl p-7 hover:border-white/15 transition-all duration-300 hover:bg-zinc-800/60"
+                >
+                  <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                    <span className="font-display font-extrabold text-emerald-400 text-lg">{item.step}</span>
+                  </div>
+                  <h3 className="font-display font-bold text-xl text-white mb-3">{item.title}</h3>
+                  <p className="text-zinc-400 text-sm leading-relaxed mb-4">{item.desc}</p>
+                  <div className="inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/8 border border-emerald-500/15 px-3 py-1.5 rounded-lg">
+                    <span>✓</span> {item.badge}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
-            <div className="mb-6">
-              <div className="text-zinc-400 text-sm font-medium mb-2">Starter</div>
-
-              <div className="flex items-end gap-1 justify-center">
-                <span className="font-display font-800 text-4xl text-white">$11</span>
-                <span className="text-zinc-500 mb-1">/month</span>
+      {/* ═══════════════════════════════════════
+          AI EMAIL SECTION (NEW)
+      ═══════════════════════════════════════ */}
+      <section className="py-20 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="ai-grid grid md:grid-cols-2 gap-8 md:gap-12 items-center ai-email-card rounded-2xl p-7 md:p-12">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium px-3 py-1.5 rounded-lg mb-5">
+                <span>✦</span> Coming soon · Growth plan
               </div>
-
-              <div className="text-zinc-500 text-xs mt-2">
-                Monitor and recover revenue in real-time
+              <h2 className="font-display text-3xl md:text-4xl font-extrabold text-white mb-4 leading-tight">
+                The difference between<br />a template and{" "}
+                <span className="italic text-violet-300">a conversation.</span>
+              </h2>
+              <p className="text-zinc-400 text-sm leading-relaxed mb-6">
+                Generic "your payment failed" emails get a 20% open rate and get ignored. Recoora's AI writes recovery emails that feel like they came from you personally — because that's what actually recovers revenue.
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 text-sm">
+                  <span className="text-rose-400 mt-0.5 shrink-0">✗</span>
+                  <span className="text-zinc-500 italic">"Your payment of $29 has failed. Please update your payment method."</span>
+                </div>
+                <div className="text-zinc-600 text-xs pl-5 font-mono">vs</div>
+                <div className="flex items-start gap-3 text-sm">
+                  <span className="text-emerald-400 mt-0.5 shrink-0">✓</span>
+                  <span className="text-zinc-300">AI writes a message that sounds like <em>you</em>. Personal. Warm. Gets read. Gets paid.</span>
+                </div>
               </div>
             </div>
 
-            <ul className="space-y-3 mb-8 text-sm text-left">
-              {[
-                "Real-time failed payment alerts",
-                "2-click recovery emails (prefilled)",
-                "Churn & cancellation alerts",
-                "Slack notifications included",
-                "1 Stripe account",
-                "7-day alert history",
-              ].map((f) => (
-                <li key={f} className="flex items-center gap-3 text-zinc-300">
-                  <span className="text-emerald-400 shrink-0">✓</span> {f}
-                </li>
-              ))}
-            </ul>
-
-            <a
-              href="/login"
-              className="block w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold py-3 rounded-xl text-center text-sm transition-all"
-            >
-              Start Free Trial
-            </a>
-
-            <p className="text-xs text-zinc-500 text-center mt-3">
-              Setup in under 2 minutes
-            </p>
-
+            {/* Email preview card */}
+            <div className="bg-zinc-900 card-border rounded-2xl overflow-hidden shadow-xl shadow-black/40">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-white/5 bg-zinc-800/40">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-black font-bold text-sm shrink-0">
+                  R
+                </div>
+                <div>
+                  <div className="text-zinc-200 text-sm font-medium">Ryan (via Recoora AI)</div>
+                  <div className="text-zinc-500 text-xs font-mono">ryan@yourapp.com</div>
+                </div>
+              </div>
+              <div className="px-5 pt-4 pb-1">
+                <div className="text-zinc-500 text-xs mb-1">Subject</div>
+                <div className="text-zinc-200 text-sm font-medium">Re: Quick thing on your account, Sarah</div>
+              </div>
+              <div className="px-5 py-4 text-zinc-300 text-sm leading-relaxed">
+                Hey Sarah,<br /><br />
+                Hope the <span className="text-emerald-400">design work</span> is going well — just flagged that your card had a small hiccup on the renewal today.<br /><br />
+                Probably just expired (happens to everyone). Here's a{" "}
+                <span className="text-emerald-400 underline cursor-pointer">direct link to update it</span>{" "}
+                — takes 30 seconds.<br /><br />
+                Let me know if anything comes up.<br /><br />
+                — Ryan
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-      </div>
-    </div>
-
-    {/* AI TEASER */}
-    <div className="mt-10 text-center">
-      <div className="inline-block border border-emerald-500/20 bg-emerald-500/5 px-4 py-2 rounded-xl text-sm text-emerald-400">
-        AI-assisted recovery emails — coming soon
-      </div>
-    </div>
-
-  </div>
-</section>
-
-
-      {/* Testimonials */}
-      
-
-      {/* FAQ */}
-      <section id="faq" className="py-24 px-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="font-display text-4xl md:text-5xl font-800 gradient-text mb-4">Common questions</h2>
+      {/* ═══════════════════════════════════════
+          COMPETITOR COMPARISON (NEW)
+      ═══════════════════════════════════════ */}
+      <section className="py-20 px-6 bg-zinc-900/30">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-4 font-display">Why Recoora</p>
+            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">
+              Built for founders,<br />not enterprises.
+            </h2>
+            <p className="text-zinc-400 text-lg max-w-xl mx-auto">
+              Enterprise tools charge $249–$599/month for features you don't need. Recoora does the one thing that matters — at a price that makes sense.
+            </p>
           </div>
-          <div className="space-y-3">
+
+          <div className="comp-table-wrap rounded-2xl card-border overflow-hidden">
+            <table className="comp-table w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-zinc-800/60">
+                  <th className="text-left px-5 py-4 text-zinc-400 font-medium text-xs uppercase tracking-wider">Feature</th>
+                  <th className="text-center px-5 py-4 text-emerald-400 font-semibold text-xs uppercase tracking-wider">Recoora</th>
+                  <th className="text-center px-5 py-4 text-zinc-500 font-medium text-xs uppercase tracking-wider">Churn Buster</th>
+                  <th className="text-center px-5 py-4 text-zinc-500 font-medium text-xs uppercase tracking-wider">Baremetrics</th>
+                  <th className="text-center px-5 py-4 text-zinc-500 font-medium text-xs uppercase tracking-wider">DIY Stripe</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  {
+                    feature: "Real-time failure alerts",
+                    r: { v: "✓ Instant", c: "text-emerald-400" },
+                    cb: { v: "✓", c: "text-emerald-400" },
+                    bm: { v: "~ Delayed", c: "text-amber-400" },
+                    diy: { v: "✗ Manual", c: "text-rose-400" },
+                  },
+                  {
+                    feature: "2-click recovery emails",
+                    r: { v: "✓", c: "text-emerald-400" },
+                    cb: { v: "~ Complex", c: "text-amber-400" },
+                    bm: { v: "✗", c: "text-rose-400" },
+                    diy: { v: "✗", c: "text-rose-400" },
+                  },
+                  {
+                    feature: "AI-personalized emails",
+                    r: { v: "✦ Coming", c: "text-violet-400" },
+                    cb: { v: "✗", c: "text-rose-400" },
+                    bm: { v: "✗", c: "text-rose-400" },
+                    diy: { v: "✗", c: "text-rose-400" },
+                  },
+                  {
+                    feature: "Cancellation alerts",
+                    r: { v: "✓", c: "text-emerald-400" },
+                    cb: { v: "✓", c: "text-emerald-400" },
+                    bm: { v: "✓", c: "text-emerald-400" },
+                    diy: { v: "✗", c: "text-rose-400" },
+                  },
+                  {
+                    feature: "Setup time",
+                    r: { v: "5 minutes", c: "text-emerald-400" },
+                    cb: { v: "Hours", c: "text-amber-400" },
+                    bm: { v: "30+ min", c: "text-amber-400" },
+                    diy: { v: "Days", c: "text-rose-400" },
+                  },
+                  {
+                    feature: "Pricing",
+                    r: { v: "From $11/mo", c: "text-emerald-400 font-semibold" },
+                    cb: { v: "From $249/mo", c: "text-rose-400" },
+                    bm: { v: "From $129/mo", c: "text-rose-400" },
+                    diy: { v: "Dev time", c: "text-amber-400" },
+                  },
+                ].map((row, i) => (
+                  <tr key={i} className="comparison-row border-t border-white/5">
+                    <td className="px-5 py-4 text-zinc-200 font-medium">{row.feature}</td>
+                    <td className={`px-5 py-4 text-center ${row.r.c} bg-emerald-500/3`}>{row.r.v}</td>
+                    <td className={`px-5 py-4 text-center ${row.cb.c}`}>{row.cb.v}</td>
+                    <td className={`px-5 py-4 text-center ${row.bm.c}`}>{row.bm.v}</td>
+                    <td className={`px-5 py-4 text-center ${row.diy.c}`}>{row.diy.v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════
+          PRICING — 2 plans (Starter + Growth)
+      ═══════════════════════════════════════ */}
+      <section id="pricing" className="py-24 px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-4 font-display">Pricing</p>
+            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">
+              Start free.<br />Upgrade when you grow.
+            </h2>
+            <p className="text-emerald-400 text-sm font-medium mb-2">14-day free trial — no credit card required</p>
+            <p className="text-zinc-400 text-lg">One recovered payment pays for months of monitoring.</p>
+          </div>
+
+          <div className="pricing-grid grid md:grid-cols-2 gap-5 max-w-3xl mx-auto">
+
+            {/* STARTER */}
+            <div className="relative bg-gradient-to-b from-zinc-900 to-black card-border rounded-2xl p-8 hover:border-white/15 transition-all duration-300">
+              <div className="mb-6">
+                <div className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3 font-display">Starter</div>
+                <div className="flex items-end gap-1 mb-1">
+                  <span className="font-display font-extrabold text-4xl text-white">$11</span>
+                  <span className="text-zinc-500 mb-1.5 text-sm">/month</span>
+                </div>
+                <p className="text-zinc-500 text-xs mt-1">Monitor and recover revenue in real-time</p>
+              </div>
+
+              <ul className="space-y-3 mb-8 text-sm">
+                {[
+                  "Real-time failed payment alerts",
+                  "2-click recovery emails (prefilled)",
+                  "Churn & cancellation alerts",
+                  "Slack notifications included",
+                  "1 Stripe account",
+                  "7-day alert history",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-3 text-zinc-300">
+                    <span className="text-emerald-400 shrink-0 mt-0.5">✓</span> {f}
+                  </li>
+                ))}
+              </ul>
+
+              <a
+                href="/login"
+                className="block w-full border border-emerald-500/50 hover:border-emerald-400 text-emerald-400 hover:text-emerald-300 font-semibold py-3.5 rounded-xl text-center text-sm transition-all duration-200 hover:bg-emerald-500/5"
+              >
+                Start 14-day free trial
+              </a>
+              <p className="text-xs text-zinc-600 text-center mt-3">Setup in under 2 minutes</p>
+            </div>
+
+            {/* GROWTH — Featured */}
+            <div className="relative bg-gradient-to-b from-zinc-900 to-black rounded-2xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.8)] hover:shadow-[0_30px_80px_rgba(16,185,129,0.12)] transition-all duration-300 border border-emerald-500/40">
+              {/* Most popular badge */}
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-black text-xs font-bold px-4 py-1.5 rounded-full whitespace-nowrap font-display">
+                MOST POPULAR
+              </div>
+
+              {/* Glow */}
+              <div className="absolute inset-0 rounded-2xl bg-emerald-500/4 blur-xl opacity-30 pointer-events-none" />
+
+              <div className="relative mb-6">
+                <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-3 font-display">Growth</div>
+                <div className="flex items-end gap-1 mb-1">
+                  <span className="font-display font-extrabold text-4xl text-white">$29</span>
+                  <span className="text-zinc-500 mb-1.5 text-sm">/month</span>
+                </div>
+                <p className="text-zinc-500 text-xs mt-1">Everything in Starter + AI recovery emails</p>
+              </div>
+
+              <ul className="relative space-y-3 mb-4 text-sm">
+                {[
+                  { text: "Everything in Starter", ai: false },
+                  { text: "AI-personalized recovery emails", ai: true },
+                  { text: "Email + Slack notifications", ai: false },
+                  { text: "Up to 3 Stripe accounts", ai: false },
+                  { text: "30-day alert history", ai: false },
+                  { text: "Priority support", ai: false },
+                ].map((f) => (
+                  <li key={f.text} className="flex items-start gap-3 text-zinc-300">
+                    <span className={`shrink-0 mt-0.5 ${f.ai ? "text-violet-400" : "text-emerald-400"}`}>
+                      {f.ai ? "✦" : "✓"}
+                    </span>
+                    <span className={f.ai ? "text-violet-200 font-medium" : ""}>{f.text}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Launching soon notice */}
+              <div className="relative mb-6 bg-amber-500/8 border border-amber-500/20 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                <span className="text-amber-400 shrink-0 mt-0.5 text-sm">⚡</span>
+                <p className="text-amber-300/80 text-xs leading-relaxed">
+                  <strong className="text-amber-300">Launching soon.</strong> Join the waitlist — you'll be first to know and get early access pricing locked in.
+                </p>
+              </div>
+
+              <a
+                href="/login"
+                className="relative block w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold py-3.5 rounded-xl text-center text-sm transition-all duration-200 glow-green hover:shadow-emerald-500/30 hover:shadow-lg"
+              >
+                Join the waitlist →
+              </a>
+              <p className="relative text-xs text-zinc-600 text-center mt-3">Lock in early access pricing</p>
+            </div>
+
+          </div>
+
+          <p className="text-center text-zinc-600 text-xs mt-8 font-mono">
+            ✓ 14-day free trial on Starter &nbsp;·&nbsp; ✓ No credit card required &nbsp;·&nbsp; ✓ Cancel anytime
+          </p>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════
+          FAQ (EXPANDED)
+      ═══════════════════════════════════════ */}
+      <section id="faq" className="py-20 px-6">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-4 font-display">FAQ</p>
+            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">Questions answered.</h2>
+            <p className="text-zinc-400">Everything a founder wants to know before connecting their Stripe.</p>
+          </div>
+          <div className="space-y-2">
             {faqs.map((faq, i) => (
-              <div key={i} className="bg-zinc-900 card-border rounded-2xl overflow-hidden">
+              <div key={i} className="bg-zinc-900 card-border rounded-2xl overflow-hidden hover:border-white/10 transition-colors duration-200">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-white/3 transition-colors"
+                  className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-white/3 transition-colors gap-4"
                 >
-                  <span className="font-medium text-white text-sm pr-4">{faq.q}</span>
-                  <span className={`text-zinc-400 transition-transform duration-200 shrink-0 ${openFaq === i ? "rotate-45" : ""}`}>+</span>
+                  <span className="font-medium text-white text-sm">{faq.q}</span>
+                  <span className={`text-emerald-400 transition-transform duration-200 shrink-0 text-lg leading-none ${openFaq === i ? "rotate-45" : ""}`}>+</span>
                 </button>
                 {openFaq === i && (
                   <div className="px-6 pb-5 text-zinc-400 text-sm leading-relaxed border-t border-white/5 pt-4">
@@ -502,50 +811,57 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Final CTA */}
+      {/* ═══════════════════════════════════════
+          FINAL CTA
+      ═══════════════════════════════════════ */}
       <section className="py-24 px-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-950/20 to-transparent pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-emerald-500/8 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-emerald-500/6 rounded-full blur-[100px] pointer-events-none" />
+
         <div className="max-w-2xl mx-auto text-center relative">
-          <h2 className="font-display text-5xl md:text-6xl font-800 gradient-text mb-4">Know when it matters.</h2>
-          <p className="text-zinc-400 text-xl mb-10">If revenue breaks, you should know in seconds — not hours.</p>
-          <a href="#pricing" className="inline-block bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-10 py-4 rounded-xl text-base transition-all duration-200 glow-green hover:shadow-emerald-500/40 hover:shadow-2xl">
+          <h2 className="font-display text-4xl md:text-6xl font-extrabold gradient-text mb-4 leading-tight">
+            Stop losing revenue<br />you've already earned.
+          </h2>
+          <p className="text-zinc-400 text-lg md:text-xl mb-10 max-w-lg mx-auto leading-relaxed">
+            Every day without Recoora is a day where failed payments silently cancel themselves. Set it up in 5 minutes.
+          </p>
+          <a
+            href="#pricing"
+            className="inline-block bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-10 py-4 rounded-xl text-base transition-all duration-200 glow-green hover:shadow-emerald-500/40 hover:shadow-2xl"
+          >
             Start Free Trial Today →
           </a>
-          <div className="flex items-center justify-center gap-6 mt-8 text-zinc-500 text-xs">
-            <span>✓ 5-minute setup</span>
-            <span>✓ Cancel anytime</span>
-            <span>✓ No card for trial</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-8 text-zinc-500 text-xs">
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> 5-minute setup</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> Read-only Stripe access</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-400">✓</span> Cancel anytime</span>
           </div>
         </div>
       </section>
 
-       
-      {/* Footer */}
+      {/* ═══════════════════════════════════════
+          FOOTER
+      ═══════════════════════════════════════ */}
       <footer className="border-t border-white/5 py-12 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="footer-inner flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex items-center gap-2.5">
-              <img src="/logo.png" alt="Recoora" className="w-11 h-11 rounded-md" />
-              <span className="font-display font-700 text-white">Recoora</span>
+              <img src="/logo.png" alt="Recoora" className="w-9 h-9 rounded-md" />
+              <span className="font-display font-bold text-white text-lg">Recoora</span>
             </div>
-            <div className="flex items-center gap-8">
-  {[
-    { name: "Features", href: "#features" },
-    { name: "Pricing", href: "#pricing" },
-    { name: "FAQ", href: "#faq" },
-    { name: "Privacy", href: "/privacy" },
-    { name: "Terms", href: "/terms" },
-  ].map((link) => (
-    <a
-      key={link.name}
-      href={link.href}
-      className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors"
-    >
-      {link.name}
-    </a>
-  ))}
-</div>
+            <div className="footer-links flex items-center gap-6 md:gap-8">
+              {[
+                { name: "Features", href: "#features" },
+                { name: "Pricing", href: "#pricing" },
+                { name: "FAQ", href: "#faq" },
+                { name: "Privacy", href: "/privacy" },
+                { name: "Terms", href: "/terms" },
+              ].map((link) => (
+                <a key={link.name} href={link.href} className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors">
+                  {link.name}
+                </a>
+              ))}
+            </div>
           </div>
           <div className="mt-8 pt-6 border-t border-white/5 text-center text-zinc-600 text-xs">
             © 2026 Recoora. Built for founders who'd rather ship than stare at dashboards.

@@ -19,22 +19,23 @@ export default function ResetPasswordPage() {
     number: false,
     special: false,
   });
+useEffect(() => {
+  const checkSession = async () => {
+    // wait a bit for Supabase to parse URL
+    await new Promise((res) => setTimeout(res, 500));
 
-  useEffect(() => {
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (event, session) => {
-      console.log("AUTH EVENT:", event);
-      console.log("SESSION:", session);
+    const { data } = await supabase.auth.getSession();
 
-      if (event === "PASSWORD_RECOVERY") {
-        setSessionReady(true);
-      }
+    console.log("SESSION:", data.session);
+
+    if (data.session) {
+      setSessionReady(true);
+    } else {
+      setError("This link may have expired or already been used.");
     }
-  );
-
-  return () => {
-    listener.subscription.unsubscribe();
   };
+
+  checkSession();
 }, []);
 
   // ✅ Password strength validation
@@ -92,7 +93,12 @@ if (error) {
 }
 
     setSuccess(true);
-    setLoading(false);
+setLoading(false);
+
+// ✅ redirect after success
+setTimeout(() => {
+  window.location.href = "/login";
+}, 2000);
   };
 
   if (!sessionReady && !error) {
@@ -101,13 +107,6 @@ if (error) {
       <p>Verifying reset link...</p>
     </div>
   );
-
-  if (!error) {
-  setSuccess(true);
-  setTimeout(() => {
-    window.location.href = "/login";
-  }, 2000);
-}
 }
 
   return (

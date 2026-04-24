@@ -20,8 +20,12 @@ export default function ForgotPasswordPage() {
       redirectTo: `${window.location.origin}/reset-password`,
     });
 
-    if (error) {
-      setError("Something went wrong. Please try again.");
+   if (error) {
+  if (error.message.toLowerCase().includes("rate limit")) {
+    setError("Too many requests. Please wait a minute.");
+  } else {
+    setError(error.message);
+  }
       setLoading(false);
       return;
     }

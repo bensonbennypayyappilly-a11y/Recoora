@@ -278,7 +278,7 @@ export default function LandingPage() {
           </div>
 
           {/* Headline */}
-          <h1 className="hero-title animate-fade-up-1 font-display text-6xl md:text-8xl font-extrabold tracking-tight mb-4 leading-none">
+          <h1 className="hero-title animate-fade-up-1 font-display text-6xl md:text-8xl font-bold tracking-tight mb-4 leading-none">
             <span className="gradient-text">Your Stripe revenue<br />is leaking </span>
             <span className="accent-text italic">silently.</span>
             <br />
@@ -440,7 +440,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-emerald-600 text-xs font-semibold tracking-widest uppercase mb-4 font-display">Features</p>
-            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">
+            <h2 className="font-display text-4xl md:text-5xl font-bold gradient-text mb-4">
               Everything you need.<br />Nothing you don't.
             </h2>
             <p className="text-zinc-500 text-lg max-w-xl mx-auto">
@@ -476,7 +476,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-emerald-600 text-xs font-semibold tracking-widest uppercase mb-4 font-display">How it works</p>
-            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">
+            <h2 className="font-display text-4xl md:text-5xl font-bold gradient-text mb-4">
               Up and running<br />in under 5 minutes.
             </h2>
             <p className="text-zinc-500 text-lg">No engineering required. No complex setup.</p>
@@ -510,7 +510,7 @@ export default function LandingPage() {
                   className="text-center bg-white border border-zinc-200 rounded-2xl p-7 hover:border-emerald-300 hover:shadow-md transition-all duration-300 shadow-sm"
                 >
                   <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                    <span className="font-display font-extrabold text-emerald-600 text-lg">{item.step}</span>
+                    <span className="font-display font-bold text-emerald-600 text-lg">{item.step}</span>
                   </div>
                   <h3 className="font-display font-bold text-xl text-zinc-900 mb-3">{item.title}</h3>
                   <p className="text-zinc-500 text-sm leading-relaxed mb-4">{item.desc}</p>
@@ -534,7 +534,7 @@ export default function LandingPage() {
               <div className="inline-flex items-center gap-2 bg-violet-50 border border-violet-200 text-violet-600 text-xs font-medium px-3 py-1.5 rounded-lg mb-5">
                 <span>✦</span> Coming soon · Growth plan
               </div>
-              <h2 className="font-display text-3xl md:text-4xl font-extrabold text-zinc-900 mb-4 leading-tight">
+              <h2 className="font-display text-3xl md:text-4xl font-bold text-zinc-900 mb-4 leading-tight">
                 The difference between<br />a template and{" "}
                 <span className="italic text-violet-600">a conversation.</span>
               </h2>
@@ -590,7 +590,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-emerald-600 text-xs font-semibold tracking-widest uppercase mb-4 font-display">Why Recoora</p>
-            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">
+            <h2 className="font-display text-4xl md:text-5xl font-bold gradient-text mb-4">
               Built for founders,<br />not enterprises.
             </h2>
             <p className="text-zinc-500 text-lg max-w-xl mx-auto">
@@ -675,7 +675,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-emerald-600 text-xs font-semibold tracking-widest uppercase mb-4 font-display">Pricing</p>
-            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">
+            <h2 className="font-display text-4xl md:text-5xl font-bold gradient-text mb-4">
               Start free.<br />Upgrade when you grow.
             </h2>
             <p className="text-emerald-600 text-sm font-medium mb-2">14-day free trial — no credit card required</p>
@@ -689,7 +689,7 @@ export default function LandingPage() {
               <div className="mb-6">
                 <div className="text-zinc-500 text-xs font-semibold uppercase tracking-wider mb-3 font-display">Starter</div>
                 <div className="flex items-end gap-1 mb-1">
-                  <span className="font-display font-extrabold text-4xl text-zinc-900">$11</span>
+                  <span className="font-display font-bold text-4xl text-zinc-900">$11</span>
                   <span className="text-zinc-400 mb-1.5 text-sm">/month</span>
                 </div>
                 <p className="text-zinc-400 text-xs mt-1">Monitor and recover revenue in real-time</p>
@@ -729,7 +729,7 @@ export default function LandingPage() {
               <div className="mb-6">
                 <div className="text-emerald-600 text-xs font-semibold uppercase tracking-wider mb-3 font-display">Growth</div>
                 <div className="flex items-end gap-1 mb-1">
-                  <span className="font-display font-extrabold text-4xl text-zinc-900">$29</span>
+                  <span className="font-display font-bold text-4xl text-zinc-900">$29</span>
                   <span className="text-zinc-400 mb-1.5 text-sm">/month</span>
                 </div>
                 <p className="text-zinc-400 text-xs mt-1">Everything in Starter + AI recovery emails</p>
@@ -785,7 +785,7 @@ export default function LandingPage() {
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-emerald-600 text-xs font-semibold tracking-widest uppercase mb-4 font-display">FAQ</p>
-            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">Questions answered.</h2>
+            <h2 className="font-display text-4xl md:text-5xl font-bold gradient-text mb-4">Questions answered.</h2>
             <p className="text-zinc-500">Everything a founder wants to know before connecting their Stripe.</p>
           </div>
           <div className="space-y-2">
@@ -820,7 +820,7 @@ export default function LandingPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-emerald-200 to-transparent" />
 
         <div className="max-w-2xl mx-auto text-center relative">
-          <h2 className="font-display text-4xl md:text-6xl font-extrabold gradient-text mb-4 leading-tight">
+          <h2 className="font-display text-4xl md:text-6xl font-bold gradient-text mb-4 leading-tight">
             Stop losing revenue<br />you've already earned.
           </h2>
           <p className="text-zinc-500 text-lg md:text-xl mb-10 max-w-lg mx-auto leading-relaxed">

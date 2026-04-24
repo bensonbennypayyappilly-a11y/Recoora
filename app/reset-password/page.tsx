@@ -23,8 +23,10 @@ export default function ResetPasswordPage() {
   useEffect(() => {
   const { data: listener } = supabase.auth.onAuthStateChange(
     (event, session) => {
+      console.log("AUTH EVENT:", event);
+      console.log("SESSION:", session);
+
       if (event === "PASSWORD_RECOVERY") {
-        console.log("Recovery session set");
         setSessionReady(true);
       }
     }

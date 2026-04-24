@@ -20,22 +20,37 @@ export default function ResetPasswordPage() {
     special: false,
   });
 useEffect(() => {
-  const checkSession = async () => {
-    // wait a bit for Supabase to parse URL
-    await new Promise((res) => setTimeout(res, 500));
+  let executed = false;
 
-    const { data } = await supabase.auth.getSession();
+  const handleAuth = async () => {
+    if (executed) return;
+    executed = true;
 
-    console.log("SESSION:", data.session);
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
 
-    if (data.session) {
-      setSessionReady(true);
-    } else {
-      setError("This link may have expired or already been used.");
+    console.log("CODE:", code);
+
+    if (!code) {
+      setError("Invalid or expired reset link.");
+      return;
     }
+
+    // ✅ THIS IS REQUIRED
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      console.error("EXCHANGE ERROR:", error.message);
+      setError("This link may have expired or already been used.");
+      return;
+    }
+
+    console.log("SESSION CREATED");
+
+    setSessionReady(true);
   };
 
-  checkSession();
+  handleAuth();
 }, []);
 
   // ✅ Password strength validation

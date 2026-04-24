@@ -436,7 +436,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-4 font-display">Features</p>
-            <h2 className="font-display text-4xl md:text-5xl font-extrabold gradient-text mb-4">Everything you need.<br />Nothing you don't.</h2>
+            <h2 className="font-display text-4xl md:text-5xl font-bold gradient-text mb-4">Everything you need.<br />Nothing you don't.</h2>
             <p className="text-zinc-400 text-lg max-w-xl mx-auto">
               Covers the only events that actually lose you money — and makes recovery effortless.
             </p>

@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { cookies } from "next/headers";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -9,23 +8,33 @@ export async function GET(req: NextRequest) {
 
   if (!code) {
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/login?error=missing_code`
+      new URL("/login?error=missing_code", req.url)
     );
   }
 
-  const cookieStore = await cookies();
+  // Determine where to redirect after exchange
+  const redirectTo =
+    next === "reset"
+      ? new URL("/reset-password", req.url)
+      : new URL("/email-verified", req.url);
 
+  const response = NextResponse.redirect(redirectTo);
+
+  // ✅ Cookie-aware client using NextRequest/NextResponse
+  // This is the ONLY pattern that actually writes cookies in Route Handlers
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          return req.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          // Write to both the request and the response
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
+            req.cookies.set(name, value);
+            response.cookies.set(name, value, options);
           });
         },
       },
@@ -37,19 +46,10 @@ export async function GET(req: NextRequest) {
   if (error) {
     console.error("❌ Auth exchange failed:", error.message);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/login?error=auth`
+      new URL("/login?error=auth", req.url)
     );
   }
 
-  // Password reset: next param tells us where to go after exchange
-  if (next === "reset") {
-    return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`
-    );
-  }
-
-  // Email verification (default)
-  return NextResponse.redirect(
-    `${process.env.NEXT_PUBLIC_APP_URL}/email-verified`
-  );
+  // Session cookies are now written to `response` — return it
+  return response;
 }

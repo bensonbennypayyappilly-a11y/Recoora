@@ -36,12 +36,13 @@ export async function middleware(req: NextRequest) {
   }
 
   if (
-    session &&
-    (pathname.startsWith("/login") ||
-      pathname.startsWith("/signup"))
-  ) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
+  session &&
+  (pathname.startsWith("/login") ||
+    pathname.startsWith("/signup")) &&
+  !pathname.startsWith("/reset-password")
+) {
+  return NextResponse.redirect(new URL("/dashboard", req.url));
+}
 
   return res;
 }

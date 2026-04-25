@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSupabaseClient } from "@/lib/supabaseClient";
-
-const supabase = getSupabaseClient();
+import { supabase } from "@/lib/supabaseClient";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
@@ -22,23 +20,45 @@ export default function ResetPasswordPage() {
     special: false,
   });
 useEffect(() => {
-  const checkSession = async () => {
-    // small delay to allow cookie/session to settle
-    await new Promise((res) => setTimeout(res, 500));
+    // First check if session already exists (cookie was set by callback)
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        setSessionReady(true);
+        return;
+      }
+    });
 
-    const { data } = await supabase.auth.getSession();
+    // Also listen for async session arrival
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (
+          (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") &&
+          session
+        ) {
+          setSessionReady(true);
+        }
+        if (!session && !sessionReady) {
+          setError(
+            "Reset link has expired or already been used. Please request a new one."
+          );
+        }
+      }
+    );
 
-    console.log("SESSION:", data.session);
+    // Fallback: if nothing fires after 4 seconds, show error
+    const timeout = setTimeout(() => {
+      if (!sessionReady) {
+        setError(
+          "Reset link has expired or already been used. Please request a new one."
+        );
+      }
+    }, 4000);
 
-    if (data.session) {
-      setSessionReady(true);
-    } else {
-      setError("Session not found. Please request a new reset link.");
-    }
-  };
-
-  checkSession();
-}, []);
+    return () => {
+      listener.subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, []);
 
   // ✅ Password strength validation
   useEffect(() => {

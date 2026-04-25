@@ -1,12 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-// ✅ function (for future flexibility)
-export function getSupabaseClient() {
-  return createBrowserClient(
+  export const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-}
-
-// ✅ ADD THIS LINE (FIXES YOUR ENTIRE APP)
-export const supabase = getSupabaseClient();

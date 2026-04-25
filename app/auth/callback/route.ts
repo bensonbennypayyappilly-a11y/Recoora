@@ -12,7 +12,6 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Determine where to redirect after exchange
   const redirectTo =
     next === "reset"
       ? new URL("/reset-password", req.url)
@@ -20,8 +19,6 @@ export async function GET(req: NextRequest) {
 
   const response = NextResponse.redirect(redirectTo);
 
-  // ✅ Cookie-aware client using NextRequest/NextResponse
-  // This is the ONLY pattern that actually writes cookies in Route Handlers
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -31,7 +28,6 @@ export async function GET(req: NextRequest) {
           return req.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          // Write to both the request and the response
           cookiesToSet.forEach(({ name, value, options }) => {
             req.cookies.set(name, value);
             response.cookies.set(name, value, options);
@@ -50,6 +46,5 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Session cookies are now written to `response` — return it
   return response;
 }

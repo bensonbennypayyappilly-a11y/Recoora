@@ -1,48 +1,48 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+  const res = NextResponse.next({
+    request: { headers: req.headers },
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name) {
-          return req.cookies.get(name)?.value;
+        getAll() {
+          return req.cookies.getAll();
         },
-        set(name, value, options) {
-          res.cookies.set(name, value, options);
-        },
-        remove(name, options) {
-          res.cookies.set(name, "", { ...options, maxAge: 0 });
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            req.cookies.set(name, value)
+          );
+          cookiesToSet.forEach(({ name, value, options }) =>
+            res.cookies.set(name, value, options)
+          );
         },
       },
     }
   );
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // Refresh session — required for Server Components to see latest auth state
+  const { data: { session } } = await supabase.auth.getSession();
 
   const { pathname } = req.nextUrl;
 
-  const isProtected = pathname.startsWith("/dashboard");
-
-  if (!session && isProtected) {
+  // Protect dashboard routes
+  if (!session && pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
+  // Don't redirect authenticated users away from reset-password
   if (
-  session &&
-  (pathname.startsWith("/login") ||
-    pathname.startsWith("/signup")) &&
-  !pathname.startsWith("/reset-password")
-) {
-  return NextResponse.redirect(new URL("/dashboard", req.url));
-}
+    session &&
+    (pathname.startsWith("/login") || pathname.startsWith("/signup"))
+  ) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
 
   return res;
 }

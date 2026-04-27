@@ -1,6 +1,8 @@
-{/* Forgot password */}
+
 
 "use client";
+
+{/* Forgot password */}
 
 import { useState } from "react";
 import Link from "next/link";

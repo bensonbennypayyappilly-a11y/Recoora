@@ -1,5 +1,3 @@
-
-
 "use client";
 
 {/* Settings */}
@@ -119,6 +117,7 @@ function BillingSection() {
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [localStatus, setLocalStatus] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   const fetchBilling = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -271,7 +270,7 @@ const isCanceledEffective = effectiveStatus === "canceled";
             {/* Cancel button — ONLY when active and NOT already canceling */}
            {isActiveEffective && !isCancelingEffective && (
               <button
-                onClick={handleCancel}
+  onClick={() => setShowCancelModal(true)}
                 disabled={cancelLoading}
                 className="border border-rose-500/40 text-rose-400 px-6 py-3 rounded-xl text-sm hover:bg-rose-500/10 disabled:opacity-50"
               >
@@ -281,7 +280,48 @@ const isCanceledEffective = effectiveStatus === "canceled";
           </div>
         </div>
       </div>
+      {showCancelModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-white/10 shadow-xl">
+
+      <h2 className="text-lg font-semibold mb-3">
+        Cancel Subscription
+      </h2>
+
+      <p className="text-sm text-zinc-400 mb-6">
+        Are you sure you want to cancel your subscription? <br />
+        You will retain access until the end of your billing period.
+      </p>
+
+      <div className="flex justify-end gap-3">
+
+        {/* ❌ Close modal */}
+        <button
+          onClick={() => setShowCancelModal(false)}
+          disabled={cancelLoading}
+          className="px-4 py-2 text-sm rounded-lg border border-white/10 hover:bg-white/5 disabled:opacity-50"
+        >
+          Keep Subscription
+        </button>
+
+        {/* ✅ Confirm cancel */}
+        <button
+          onClick={async () => {
+            setShowCancelModal(false);
+            await handleCancel();
+          }}
+          disabled={cancelLoading}
+          className="px-4 py-2 text-sm rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-medium disabled:opacity-50"
+        >
+          {cancelLoading ? "Canceling..." : "Yes, Cancel"}
+        </button>
+
+      </div>
     </div>
+  </div>
+)}
+    </div>
+    
   );
 }
 
@@ -321,6 +361,7 @@ function NotificationSection() {
           </div>
         </div>
       ))}
+      
     </div>
   );
 }

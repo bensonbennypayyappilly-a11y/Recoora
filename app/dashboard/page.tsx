@@ -7,6 +7,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import SlackConnectBanner from "../components/SlackConnectBanner";
 import LiveAlerts from "../components/LiveAlerts";
+import { useRouter } from "next/navigation";
 
 type Plan = "trial" | "starter" | "pro";
 
@@ -38,6 +39,15 @@ export default function Dashboard() {
   const processedInsertedInvoices = useRef<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
   const [subscription_status, setSubscriptionStatus] = useState<string>("inactive");
+
+
+  const router = useRouter();
+
+const handleLogout = async () => {
+  await supabase.auth.signOut();
+  router.push("/login");
+  router.refresh();
+};
   
 
   const isPro = plan === "pro";
@@ -527,6 +537,21 @@ if (
 
   return (
     <div className="relative min-h-screen bg-zinc-950 text-white">
+
+      <div className="border-b border-white/5 bg-zinc-900 px-6 py-4 flex justify-between items-center">
+  <div className="font-display text-lg tracking-tight">
+    Recoora
+  </div>
+
+  <div className="flex items-center gap-6 text-sm">
+    <button
+      onClick={handleLogout}
+      className="text-rose-400 hover:text-rose-300 transition"
+    >
+      Logout
+    </button>
+  </div>
+</div>
 
       {/* ── Trial expired overlay ── */}
       {isTrialExpired && (

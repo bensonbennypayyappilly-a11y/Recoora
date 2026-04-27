@@ -49,34 +49,13 @@ export async function POST(req: Request) {
     const subscriptionId = data.stripe_subscription_id;
 
     // ── 3. Cancel at period end via Stripe ─────────────────
-    const subscription = await stripe.subscriptions.update(subscriptionId, {
-      cancel_at_period_end: true,
-    });
-
-    // ADD THIS:
-const periodEndRaw = (subscription as any).current_period_end;
-
-const periodEnd =
-  typeof periodEndRaw === "number" ? periodEndRaw : null;
-
-    // ── 4. Update DB ───────────────────────────────────────
-   await supabaseAdmin
-  .from("users")
-  .update({
-    subscription_status: "canceling",
-    current_period_end: periodEnd
-      ? new Date(periodEnd * 1000).toISOString()
-      : null,
-  })
-  .eq("id", user.id);
-
-    return NextResponse.json({
-  success: true,
-  current_period_end: periodEnd
-    ? new Date(periodEnd * 1000).toISOString()
-    : null,
+    await stripe.subscriptions.update(subscriptionId, {
+  cancel_at_period_end: true,
 });
 
+return NextResponse.json({ success: true });
+
+    
   } catch (error) {
     console.error("Cancel subscription error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

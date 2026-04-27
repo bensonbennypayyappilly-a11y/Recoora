@@ -81,44 +81,41 @@ await supabaseAdmin
   .eq("id", user.id);
   }
 
-  if (eventType === "checkout.session.completed") {
+ if (eventType === "checkout.session.completed") {
   const session = data as Stripe.Checkout.Session;
 
-if (session.mode === "subscription") {
-  const subscriptionId = session.subscription as string;
+  if (session.mode === "subscription") {
+    const subscriptionId = session.subscription as string;
 
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-  const periodEnd =
-    typeof (subscription as any).current_period_end === "number"
-      ? (subscription as any).current_period_end
-      : null;
+    const periodEnd =
+      typeof (subscription as any).current_period_end === "number"
+        ? (subscription as any).current_period_end
+        : null;
 
-  await supabaseAdmin
-    .from("users")
-    .update({
-      plan: "starter",
-      stripe_subscription_id: subscription.id,
-      subscription_status: subscription.status,
-      current_period_end: periodEnd
-        ? new Date(periodEnd * 1000).toISOString()
-        : null,
-    })
-    .eq("id", user.id);
-}
+    await supabaseAdmin
+      .from("users")
+      .update({
+        plan: "starter",
+        stripe_subscription_id: subscription.id,
+        subscription_status: subscription.status,
+        current_period_end: periodEnd
+          ? new Date(periodEnd * 1000).toISOString()
+          : null,
+      })
+      .eq("id", user.id);
+  }
 }
   // ── customer.subscription.updated ─────────────────────────
   // Fired when cancel_at_period_end changes, plan changes, etc.
   // Does NOT overwrite plan — webhook is only source of truth for status.
   if (eventType === "customer.subscription.updated") {
-    const sub = data;
+    const sub = data as Stripe.Subscription;
 
-    // Reflect canceling state correctly
-    const status = sub.cancel_at_period_end ? "canceling" : sub.status;
-
-   const periodEnd =
-  typeof sub.current_period_end === "number"
-    ? sub.current_period_end
+const periodEnd =
+  typeof (sub as any).current_period_end === "number"
+    ? (sub as any).current_period_end
     : null;
 
 await supabaseAdmin

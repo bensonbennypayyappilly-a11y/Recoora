@@ -114,6 +114,7 @@ function BillingSection() {
   const [status, setStatus] = useState("trial");
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [localStatus, setLocalStatus] = useState<string | null>(null);
 
   const fetchBilling = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -143,46 +144,34 @@ function BillingSection() {
   const formatDate = (date: string | null) =>
     date ? new Date(date).toLocaleDateString() : null;
 
-  // Derived — used to show/hide cancel button and period end label
-  const isCanceling = status === "canceling";
-  const isCanceled  = status === "canceled";
-  const isActive    = status === "active" && plan !== "trial";
 
-  const handleCancel = async () => {
-    const confirmed = confirm(
-      "Are you sure you want to cancel? You keep access until the end of your billing period."
-    );
-    if (!confirmed) return;
 
-    setCancelLoading(true);
+const handleCancel = async () => {
+  setLocalStatus("canceling");
+  setCancelLoading(true);
 
-    const session = await supabase.auth.getSession();
-    const token = session.data.session?.access_token;
-
-    if (!token) {
-      alert("Session expired. Please log in again.");
-      setCancelLoading(false);
-      return;
-    }
-
-    const res = await fetch("/api/stripe/cancel-subscription", {
+  try {
+    const res = await fetch("/api/stripe/cancel", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
     });
 
-    const data = await res.json();
+    if (!res.ok) throw new Error("Cancel failed");
 
-    if (!res.ok || data.error) {
-      alert("❌ " + (data.error ?? "Failed to cancel. Please try again."));
-      setCancelLoading(false);
-      return;
-    }
+    // immediate sync attempt
+    await fetchBilling();
 
-    // Success — update local state immediately, no reload needed
-    setStatus("canceling");
-    if (data.current_period_end) setPeriodEnd(data.current_period_end);
+    // fallback sync
+    setTimeout(fetchBilling, 3000);
+
+    setLocalStatus(null);
     setCancelLoading(false);
-  };
+
+  } catch (err) {
+    setLocalStatus(null);
+    setCancelLoading(false);
+    alert("Failed to cancel subscription");
+  }
+};
 
   const handleCheckout = async () => {
     const res = await fetch("/api/stripe/checkout", { method: "POST" });
@@ -190,6 +179,13 @@ function BillingSection() {
     if (data.url) window.location.href = data.url;
     else alert("Failed to create checkout session.");
   };
+
+
+  const effectiveStatus = localStatus ?? status;
+
+const isActiveEffective = effectiveStatus === "active" && plan !== "trial";
+const isCancelingEffective = effectiveStatus === "canceling";
+const isCanceledEffective = effectiveStatus === "canceled";
 
   return (
     <div className="max-w-6xl space-y-10">
@@ -209,13 +205,13 @@ function BillingSection() {
             )}
 
             <div className="mt-1 text-xs text-emerald-400">
-              Status: {status}
+             Status: {localStatus ?? status}
             </div>
 
             {/* Period end label — changes text based on state */}
             {periodEnd && (
               <div className="text-xs text-zinc-500 mt-2">
-                {isCanceling
+               {isCancelingEffective
                   ? `Access until: ${formatDate(periodEnd)}`
                   : `Next billing date: ${formatDate(periodEnd)}`}
               </div>
@@ -235,7 +231,7 @@ function BillingSection() {
             )}
 
             {/* Active starter → Upgrade to Pro (coming soon) */}
-            {isActive && (
+            {isActiveEffective && (
               <button
                 onClick={() => alert("🚧 Pro plan launching soon")}
                 className="bg-emerald-500 hover:bg-emerald-400 text-black px-6 py-3 rounded-xl font-semibold"
@@ -245,7 +241,7 @@ function BillingSection() {
             )}
 
             {/* Canceling — informational only, no action */}
-            {isCanceling && (
+            {isCancelingEffective && (
               <span className="text-yellow-400 text-sm font-medium">
                 Cancels at period end
                 {periodEnd && ` (${formatDate(periodEnd)})`}
@@ -253,7 +249,7 @@ function BillingSection() {
             )}
 
             {/* Canceled → Reactivate */}
-            {isCanceled && (
+            {isCanceledEffective && (
               <button
                 onClick={handleCheckout}
                 className="bg-amber-500 hover:bg-amber-400 text-black px-6 py-3 rounded-xl font-semibold"
@@ -263,7 +259,7 @@ function BillingSection() {
             )}
 
             {/* Cancel button — ONLY when active and NOT already canceling */}
-            {isActive && !isCanceling && (
+           {isActiveEffective && !isCancelingEffective && (
               <button
                 onClick={handleCancel}
                 disabled={cancelLoading}

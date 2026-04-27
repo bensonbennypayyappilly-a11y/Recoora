@@ -13,6 +13,10 @@ interface UpgradeButtonProps {
   cancelAtPeriodEnd: boolean;
 }
 
+
+const [localStatus, setLocalStatus] = useState<Status | null>(null);
+const effectiveStatus = localStatus ?? status;
+
 export default function UpgradeButton({
   plan,
   status,
@@ -45,41 +49,16 @@ export default function UpgradeButton({
   // CASE 1 — Active Starter subscription
   // Show "Upgrade to Pro (Coming Soon)" — no redirect to Stripe
   // ────────────────────────────────────────────────────────
-  if (plan === "starter" && status === "active" && !cancelAtPeriodEnd) {
+  if (plan === "starter" && effectiveStatus === "active" && !cancelAtPeriodEnd) {
   return (
-    <div className="flex gap-3">
+    
       <button
         onClick={() => alert("🚧 Pro plan coming soon. Stay tuned!")}
         className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold"
       >
         Upgrade to Pro
       </button>
-
-      <button
-        onClick={async () => {
-          if (!subscriptionId) {
-            alert("No subscription found");
-            return;
-          }
-
-          const res = await fetch("/api/stripe/cancel", {
-            method: "POST",
-            body: JSON.stringify({ subscriptionId }),
-          });
-
-          if (!res.ok) {
-            alert("Cancel failed");
-            return;
-          }
-
-          alert("Subscription will cancel at period end");
-          window.location.reload();
-        }}
-        className="bg-red-500 hover:bg-red-400 text-white px-5 py-2.5 rounded-xl text-sm font-semibold"
-      >
-        Cancel Subscription
-      </button>
-    </div>
+   
   );
 }
 
@@ -88,7 +67,7 @@ export default function UpgradeButton({
   // cancelAtPeriodEnd = true OR status = "canceling" (set by webhook)
   // Informational only — Cancel button is hidden in this state
   // ────────────────────────────────────────────────────────
- if (status === "canceling") {
+if (effectiveStatus === "canceling") {
   return (
     <button
       disabled

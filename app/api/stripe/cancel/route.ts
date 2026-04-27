@@ -54,21 +54,28 @@ export async function POST(req: Request) {
     });
 
     // ADD THIS:
-const periodEnd = (subscription as any).current_period_end as number;
+const periodEndRaw = (subscription as any).current_period_end;
+
+const periodEnd =
+  typeof periodEndRaw === "number" ? periodEndRaw : null;
 
     // ── 4. Update DB ───────────────────────────────────────
-    await supabaseAdmin
-      .from("users")
-      .update({
-        subscription_status: "canceling",
-        current_period_end: new Date(periodEnd * 1000).toISOString(),
-      })
-      .eq("id", user.id);
+   await supabaseAdmin
+  .from("users")
+  .update({
+    subscription_status: "canceling",
+    current_period_end: periodEnd
+      ? new Date(periodEnd * 1000).toISOString()
+      : null,
+  })
+  .eq("id", user.id);
 
     return NextResponse.json({
-      success: true,
-      current_period_end: new Date(periodEnd * 1000).toISOString(),
-    });
+  success: true,
+  current_period_end: periodEnd
+    ? new Date(periodEnd * 1000).toISOString()
+    : null,
+});
 
   } catch (error) {
     console.error("Cancel subscription error:", error);

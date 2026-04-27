@@ -116,15 +116,22 @@ if (session.mode === "subscription") {
     // Reflect canceling state correctly
     const status = sub.cancel_at_period_end ? "canceling" : sub.status;
 
-    await supabaseAdmin
-      .from("users")
-      .update({
-        subscription_status: status,
-        current_period_end: new Date(
-          sub.current_period_end * 1000
-        ).toISOString(),
-      })
-      .eq("id", user.id);
+   const periodEnd =
+  typeof sub.current_period_end === "number"
+    ? sub.current_period_end
+    : null;
+
+await supabaseAdmin
+  .from("users")
+  .update({
+    subscription_status: sub.cancel_at_period_end
+      ? "canceling"
+      : sub.status,
+    current_period_end: periodEnd
+      ? new Date(periodEnd * 1000).toISOString()
+      : null,
+  })
+  .eq("id", user.id);
   }
 
   // ── customer.subscription.deleted ─────────────────────────

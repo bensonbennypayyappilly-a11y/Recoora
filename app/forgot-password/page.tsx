@@ -1,3 +1,5 @@
+{/* Forgot password */}
+
 "use client";
 
 import { useState } from "react";

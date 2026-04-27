@@ -1,4 +1,8 @@
+{/* Settings */}
+
 "use client";
+
+
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -151,9 +155,14 @@ const handleCancel = async () => {
   setCancelLoading(true);
 
   try {
-    const res = await fetch("/api/stripe/cancel", {
-      method: "POST",
-    });
+    const { data: { session } } = await supabase.auth.getSession();
+
+const res = await fetch("/api/stripe/cancel", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${session?.access_token}`,
+  },
+});
 
     if (!res.ok) throw new Error("Cancel failed");
 
@@ -162,9 +171,10 @@ const handleCancel = async () => {
 
     // fallback sync
     setTimeout(fetchBilling, 3000);
+    setTimeout(fetchBilling, 6000);
 
-    setLocalStatus(null);
     setCancelLoading(false);
+// ❌ DO NOT reset localStatus here
 
   } catch (err) {
     setLocalStatus(null);

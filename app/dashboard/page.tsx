@@ -1,3 +1,5 @@
+{/* Dashboard */}
+
 "use client";
 
 import StripeConnectBanner from "../components/StripeConnectBanner";

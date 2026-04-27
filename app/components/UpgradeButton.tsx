@@ -45,31 +45,58 @@ export default function UpgradeButton({
   // Show "Upgrade to Pro (Coming Soon)" — no redirect to Stripe
   // ────────────────────────────────────────────────────────
   if (plan === "starter" && status === "active" && !cancelAtPeriodEnd) {
-    return (
+  return (
+    <div className="flex gap-3">
       <button
         onClick={() => alert("🚧 Pro plan coming soon. Stay tuned!")}
-        className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold transition"
+        className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold"
       >
-        Upgrade to Pro (Coming Soon)
+        Upgrade to Pro
       </button>
-    );
-  }
+
+      <button
+        onClick={async () => {
+          if (!subscriptionId) {
+            alert("No subscription found");
+            return;
+          }
+
+          const res = await fetch("/api/stripe/cancel", {
+            method: "POST",
+            body: JSON.stringify({ subscriptionId }),
+          });
+
+          if (!res.ok) {
+            alert("Cancel failed");
+            return;
+          }
+
+          alert("Subscription will cancel at period end");
+          window.location.reload();
+        }}
+        className="bg-red-500 hover:bg-red-400 text-white px-5 py-2.5 rounded-xl text-sm font-semibold"
+      >
+        Cancel Subscription
+      </button>
+    </div>
+  );
+}
 
   // ────────────────────────────────────────────────────────
   // CASE 2 — Canceling (scheduled to cancel at period end)
   // cancelAtPeriodEnd = true OR status = "canceling" (set by webhook)
   // Informational only — Cancel button is hidden in this state
   // ────────────────────────────────────────────────────────
-  if (status === "canceling" || (status === "active" && cancelAtPeriodEnd)) {
-    return (
-      <button
-        disabled
-        className="bg-zinc-800 text-zinc-400 border border-zinc-700 px-5 py-2.5 rounded-xl text-sm font-semibold cursor-not-allowed"
-      >
-        Cancels at Period End
-      </button>
-    );
-  }
+ if (status === "canceling") {
+  return (
+    <button
+      disabled
+      className="bg-zinc-800 text-zinc-400 border border-zinc-700 px-5 py-2.5 rounded-xl text-sm font-semibold cursor-not-allowed"
+    >
+      Cancels at Period End
+    </button>
+  );
+}
 
   // ────────────────────────────────────────────────────────
   // CASE 3 — Subscription was canceled (fully ended)

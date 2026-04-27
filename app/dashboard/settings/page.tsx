@@ -109,10 +109,8 @@ function AccountSection() {
 
 {/* ✅ NEW PERIOD END DISPLAY */}
 {status === "canceling" && periodEnd && (
-  <div className="text-xs text-zinc-500 mt-1">
-    {status === "canceling"
-      ? `Access until: ${formatDate(periodEnd)}`
-      : `Next billing date: ${formatDate(periodEnd)}`}
+  <div className="text-xs text-yellow-400 mt-1">
+    Access until: {new Date(periodEnd).toLocaleDateString()}
   </div>
 )}
       </div>

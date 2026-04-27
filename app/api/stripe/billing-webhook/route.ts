@@ -60,31 +60,7 @@ const data = event.data.object as any;
   
 
   
- if (eventType === "customer.subscription.updated") {
- const sub = data as Stripe.Subscription;
-
-const rawSub = sub as any; // 👈 FIX TYPES HERE
-
-const periodEnd =
-  typeof rawSub.current_period_end === "number"
-    ? rawSub.current_period_end
-    : rawSub.items?.data?.[0]?.current_period_end ?? null;
-
-  await supabaseAdmin
-    .from("users")
-    .update({
-      subscription_status: sub.cancel_at_period_end
-        ? "canceling"
-        : sub.status,
-      current_period_end: periodEnd
-        ? new Date(periodEnd * 1000).toISOString()
-        : null,
-    })
-    .eq("id", user.id);
-
-    console.log("SUB UPDATE:", sub);
-}
-
+ 
  if (eventType === "checkout.session.completed") {
   const session = data as Stripe.Checkout.Session;
 
@@ -115,26 +91,27 @@ const periodEnd =
   // Fired when cancel_at_period_end changes, plan changes, etc.
   // Does NOT overwrite plan — webhook is only source of truth for status.
   if (eventType === "customer.subscription.updated") {
-    const sub = data as Stripe.Subscription;
+  const sub = data as Stripe.Subscription;
+  const rawSub = sub as any;
 
-const periodEnd =
-  typeof (sub as any).current_period_end === "number"
-    ? (sub as any).current_period_end
-    : null;
+  // ✅ ALWAYS SAFE SOURCE
+  const periodEnd =
+    rawSub.items?.data?.[0]?.current_period_end ?? rawSub.cancel_at ?? null;
 
-await supabaseAdmin
-  .from("users")
-  .update({
-    subscription_status: sub.cancel_at_period_end
-      ? "canceling"
-      : sub.status,
-    current_period_end: periodEnd
-      ? new Date(periodEnd * 1000).toISOString()
-      : null,
-  })
-  .eq("id", user.id);
-  }
+  await supabaseAdmin
+    .from("users")
+    .update({
+      subscription_status: rawSub.cancel_at_period_end
+        ? "canceling"
+        : rawSub.status,
+      current_period_end: periodEnd
+        ? new Date(periodEnd * 1000).toISOString()
+        : null,
+    })
+    .eq("id", user.id);
 
+  console.log("✅ FINAL PERIOD END:", periodEnd);
+}
   // ── customer.subscription.deleted ─────────────────────────
   // Fires when subscription fully ends after period end.
   if (eventType === "customer.subscription.deleted") {

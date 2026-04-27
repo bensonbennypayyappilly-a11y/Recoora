@@ -1,6 +1,8 @@
-{/* Dashboard */}
+
 
 "use client";
+
+{/* Dashboard */}
 
 import StripeConnectBanner from "../components/StripeConnectBanner";
 import UpgradeButton from "../components/UpgradeButton";

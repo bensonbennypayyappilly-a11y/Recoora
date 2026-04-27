@@ -1,6 +1,8 @@
-{/* Landing page */}
+
 
 "use client";
+{/* Landing page */}
+
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";

@@ -1,8 +1,8 @@
-{/* Settings */}
+
 
 "use client";
 
-
+{/* Settings */}
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";

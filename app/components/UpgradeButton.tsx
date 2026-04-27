@@ -1,6 +1,8 @@
-{/* Upgrade button */}
+
 
 "use client";
+
+{/* Upgrade button */}
 
 import { useState } from "react";
 

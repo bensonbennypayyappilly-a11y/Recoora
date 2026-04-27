@@ -41,10 +41,9 @@ useEffect(() => {
     console.log("❌ error:", error);
 
     if (sessionData.session && mounted) {
-      console.log("✅ Session exists");
-      setSessionReady(true);
-      return;
-    }
+  console.log("✅ Session already available");
+  setSessionReady(true);
+}
 
     console.log("⏳ Waiting for auth event...");
   };
@@ -55,14 +54,10 @@ useEffect(() => {
     (event, session) => {
       console.log("⚡ Event:", event);
 
-      if (
-        (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") &&
-        session &&
-        mounted
-      ) {
-        console.log("✅ Session established");
-        setSessionReady(true);
-      }
+    if (session && mounted) {
+  console.log("✅ Session established via event:", event);
+  setSessionReady(true);
+}
     }
   );
 

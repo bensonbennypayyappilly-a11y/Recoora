@@ -20,45 +20,34 @@ export default function ResetPasswordPage() {
     special: false,
   });
 useEffect(() => {
-    // First check if session already exists (cookie was set by callback)
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
+  let mounted = true;
+
+  const checkSession = async () => {
+    const { data } = await supabase.auth.getSession();
+
+    if (data.session && mounted) {
+      setSessionReady(true);
+    }
+  };
+
+  checkSession();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (event, session) => {
+      if (
+        (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") &&
+        session
+      ) {
         setSessionReady(true);
-        return;
       }
-    });
+    }
+  );
 
-    // Also listen for async session arrival
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (
-          (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") &&
-          session
-        ) {
-          setSessionReady(true);
-        }
-        if (!session && !sessionReady) {
-          setError(
-            "Reset link has expired or already been used. Please request a new one."
-          );
-        }
-      }
-    );
-
-    // Fallback: if nothing fires after 4 seconds, show error
-    const timeout = setTimeout(() => {
-      if (!sessionReady) {
-        setError(
-          "Reset link has expired or already been used. Please request a new one."
-        );
-      }
-    }, 4000);
-
-    return () => {
-      listener.subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
-  }, []);
+  return () => {
+    mounted = false;
+    listener.subscription.unsubscribe();
+  };
+}, []);
 
   // ✅ Password strength validation
   useEffect(() => {
@@ -193,10 +182,10 @@ setTimeout(() => {
 
           <button
   type="submit"
-  disabled={loading || !sessionReady}
+  disabled={loading}
   className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black py-2 rounded-xl font-semibold"
 >
-  {!sessionReady ? "Verifying link..." : loading ? "Updating..." : "Update Password"}
+  {loading ? "Updating..." : "Update Password"}
 </button>
 
         </form>

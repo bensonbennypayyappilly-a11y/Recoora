@@ -70,6 +70,7 @@ function AccountSection() {
   const [plan, setPlan]       = useState<Plan>(null);
   const [status, setStatus]   = useState<string>("inactive");
   const [loading, setLoading] = useState(true);
+  const [periodEnd, setPeriodEnd] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -78,7 +79,7 @@ function AccountSection() {
 
       const { data } = await supabase
         .from("users")
-        .select("plan, subscription_status")
+        .select("plan, subscription_status, current_period_end")
         .eq("id", user.id)
         .single();
 
@@ -86,8 +87,12 @@ function AccountSection() {
       setPlan(data?.plan ?? null);
       setStatus(data?.subscription_status ?? "inactive");
       setLoading(false);
+      setPeriodEnd(data?.current_period_end ?? null);
     })();
   }, []);
+
+  const formatDate = (date: string | null) =>
+  date ? new Date(date).toLocaleDateString() : null;
 
   if (loading) return <p className="text-zinc-500">Loading...</p>;
 
@@ -98,7 +103,18 @@ function AccountSection() {
       <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
         <div className="text-zinc-400 text-sm mb-1">Current Plan</div>
         <div className="text-lg font-medium capitalize">{plan ?? "Trial"}</div>
-        <div className="text-xs text-emerald-400 mt-1">Status: {status}</div>
+        <div className="text-xs text-emerald-400 mt-1">
+  Status: {status}
+</div>
+
+{/* ✅ NEW PERIOD END DISPLAY */}
+{status === "canceling" && periodEnd && (
+  <div className="text-xs text-zinc-500 mt-1">
+    {status === "canceling"
+      ? `Access until: ${formatDate(periodEnd)}`
+      : `Next billing date: ${formatDate(periodEnd)}`}
+  </div>
+)}
       </div>
 
       <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
@@ -145,8 +161,10 @@ function BillingSection() {
   if (loading) return <p className="text-zinc-500">Loading...</p>;
 
   const formatDate = (date: string | null) =>
-    date ? new Date(date).toLocaleDateString() : null;
+  date ? new Date(date).toLocaleDateString() : null;
 
+  const formatDateTime = (date: string | null) =>
+  date ? new Date(date).toLocaleString() : null;
 
 
 const handleCancel = async () => {
@@ -218,13 +236,13 @@ const isCanceledEffective = effectiveStatus === "canceled";
             </div>
 
             {/* Period end label — changes text based on state */}
-            {periodEnd && (
-              <div className="text-xs text-zinc-500 mt-2">
-               {isCancelingEffective
-                  ? `Access until: ${formatDate(periodEnd)}`
-                  : `Next billing date: ${formatDate(periodEnd)}`}
-              </div>
-            )}
+            {isCancelingEffective && periodEnd && (
+  <div className="text-xs text-zinc-500 mt-2">
+    {isCancelingEffective
+      ? `Access until: ${formatDateTime(periodEnd)}`
+      : `Next billing: ${formatDateTime(periodEnd)}`}
+  </div>
+)}
           </div>
 
           <div className="flex gap-3 flex-wrap items-center">

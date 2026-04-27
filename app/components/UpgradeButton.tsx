@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+
 type Plan   = "trial" | "starter" | "pro" | null;
 type Status = string; // "active" | "canceled" | "canceling" | "past_due" | "incomplete" | "unpaid" | "inactive"
 

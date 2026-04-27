@@ -540,7 +540,12 @@ if (
               Upgrade to continue monitoring your Stripe revenue in real-time.
             </p>
             <div className="mt-6">
-              <UpgradeButton plan={plan} status={subscription_status} />
+              <UpgradeButton
+  plan={plan}
+  status={subscription_status}
+  subscriptionId={null}
+  cancelAtPeriodEnd={false}
+/>
             </div>
           </div>
         </div>

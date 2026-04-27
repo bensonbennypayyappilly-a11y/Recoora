@@ -19,25 +19,49 @@ export default function ResetPasswordPage() {
     number: false,
     special: false,
   });
+  
+  console.log("🔑 URL HASH:", window.location.hash);
+
+  
 useEffect(() => {
   let mounted = true;
 
-  const checkSession = async () => {
-    const { data } = await supabase.auth.getSession();
+  console.log("🚀 Reset page loaded");
+  console.log("🌐 Current URL:", window.location.href);
 
-    if (data.session && mounted) {
+  const init = async () => {
+    console.log("🔍 Checking session...");
+
+    // STEP 1 — Check existing session
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+
+    console.log("📦 getSession result:", sessionData);
+    console.log("❌ getSession error:", sessionError);
+
+    if (sessionData.session && mounted) {
+      console.log("✅ Session already exists");
       setSessionReady(true);
+      return;
     }
+
+    console.log("⏳ No session yet, waiting for auth event...");
   };
 
-  checkSession();
+  init();
 
+  // STEP 2 — Listen for recovery event
   const { data: listener } = supabase.auth.onAuthStateChange(
     (event, session) => {
+      console.log("⚡ Auth event triggered:", event);
+      console.log("📦 Session from event:", session);
+
       if (
-        (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") &&
-        session
+        (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") &&
+        session &&
+        mounted
       ) {
+        console.log("✅ Session established via event");
         setSessionReady(true);
       }
     }
@@ -112,10 +136,12 @@ setTimeout(() => {
 }, 2000);
   };
 
-  if (!sessionReady && !error) {
+  if (!sessionReady) {
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <p>Verifying reset link...</p>
+      <p>
+        {error ? error : "Verifying reset link..."}
+      </p>
     </div>
   );
 }

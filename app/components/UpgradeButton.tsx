@@ -14,8 +14,7 @@ interface UpgradeButtonProps {
 }
 
 
-const [localStatus, setLocalStatus] = useState<Status | null>(null);
-const effectiveStatus = localStatus ?? status;
+
 
 export default function UpgradeButton({
   plan,
@@ -24,6 +23,9 @@ export default function UpgradeButton({
   cancelAtPeriodEnd,
 }: UpgradeButtonProps) {
   const [loading, setLoading] = useState(false);
+
+const [localStatus, setLocalStatus] = useState<Status | null>(null);
+const effectiveStatus = localStatus ?? status;
 
   // ── Redirect to Stripe Checkout ──────────────────────────
   const goToCheckout = async () => {

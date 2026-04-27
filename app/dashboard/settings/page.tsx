@@ -146,9 +146,9 @@ setEmail(user.email || "");
             <div className="text-lg font-medium capitalize">{plan}</div>
 
           <div className="mt-1 text-xs text-emerald-400">
-          Status: {status}
+          Status: {subscription_status}
 
-{status === "canceling" && (
+{subscription_status === "canceling" && (
   <div className="text-xs text-yellow-400 mt-1">
     Cancels at period end
   </div>
@@ -449,43 +449,42 @@ function BillingSection() {
             )}
 
             {/* 🔥 CANCEL SUBSCRIPTION */}
-            {plan !== "trial" && (
-              <button
-                onClick={async () => {
-                  const confirmCancel = confirm(
-                    "Are you sure you want to cancel your subscription?"
-                  );
+            {status === "active" && (
+  <button
+    onClick={async () => {
+      const confirmCancel = confirm(
+        "Are you sure you want to cancel your subscription?"
+      );
 
-                  if (!confirmCancel) return;
+      if (!confirmCancel) return;
 
+      const session = await supabase.auth.getSession();
 
-const session = await supabase.auth.getSession();
+      const res = await fetch("/api/stripe/cancel-subscription", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.data.session?.access_token}`,
+        },
+      });
 
-const res = await fetch("/api/stripe/cancel-subscription", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${session.data.session?.access_token}`,
-  },
-});
+      const data = await res.json();
 
-                  const data = await res.json();
-
-                  if (!data.success) {
-                    alert("❌ " + data.error);
-                  } else {
-                    alert(
-                      `✅ Subscription cancelled. Active until ${formatDate(
-                        data.current_period_end
-                      )}`
-                    );
-                    window.location.reload();
-                  }
-                }}
-                className="border border-rose-500/40 text-rose-400 px-6 py-3 rounded-xl text-sm hover:bg-rose-500/10"
-              >
-                Cancel Subscription
-              </button>
-            )}
+      if (!data.success) {
+        alert("❌ " + data.error);
+      } else {
+        alert(
+          `✅ Subscription will cancel at period end (${formatDate(
+            data.current_period_end
+          )})`
+        );
+        window.location.reload();
+      }
+    }}
+    className="border border-rose-500/40 text-rose-400 px-6 py-3 rounded-xl text-sm hover:bg-rose-500/10"
+  >
+    Cancel Subscription
+  </button>
+)}
           </div>
         </div>
       </div>

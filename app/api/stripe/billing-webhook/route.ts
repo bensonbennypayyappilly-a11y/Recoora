@@ -1,229 +1,214 @@
+import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { headers } from "next/headers";
-import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const body = await req.text();
-  const sig = (await headers()).get("stripe-signature");
-
-  if (!sig) {
-    return new NextResponse("No signature", { status: 400 });
-  }
+  const sig = req.headers.get("stripe-signature")!;
 
   let event: Stripe.Event;
 
+  // ✅ VERIFY SIGNATURE
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_BILLING_WEBHOOK_SECRET!
-    );
-  } catch (err) {
-    console.error("❌ Billing webhook signature failed:", err);
-    return new NextResponse("Webhook Error", { status: 400 });
+    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+  } catch (err: any) {
+    console.error("❌ Signature verification failed:", err.message);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const eventType = event.type;
-  // =======================================================
-// ✅ HANDLE CHECKOUT FIRST (CRITICAL FIX)
-// =======================================================
+  try {
+    switch (event.type) {
 
-if (event.type === "checkout.session.completed") {
-  const data = event.data.object as any;
+      // ✅ SUBSCRIPTION CREATED / UPDATED
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as any;
 
-  const customerId = data.customer;
-  const subscriptionId = data.subscription;
-  const userId = data.metadata?.user_id;
+        const customerId = subscription.customer as string;
+        const userIdFromMeta = subscription.metadata?.user_id;
 
-  console.log("🔥 CHECKOUT SESSION:", {
-    customerId,
-    subscriptionId,
-    userId,
-  });
+        // 🔥 Resolve user
+        let userData = null;
 
-  if (!userId) {
-    console.error("❌ Missing user_id in metadata");
-    return NextResponse.json({ error: true });
-  }
+        if (userIdFromMeta) {
+          const { data } = await supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("id", userIdFromMeta)
+            .single();
 
-  await supabaseAdmin
-    .from("users")
-    .update({
-      stripe_customer_id: customerId,
-      stripe_subscription_id: subscriptionId,
-      plan: "starter",
-      subscription_status: "active",
-    })
-    .eq("id", userId);
+          userData = data;
+        }
 
-  return NextResponse.json({ success: true });
-}
-  const data = event.data.object as any;
+        if (!userData) {
+          const { data } = await supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("stripe_customer_id", customerId)
+            .single();
 
-  console.log("💳 BILLING EVENT:", eventType);
+          userData = data;
+        }
 
-  /* =======================================================
-     🔑 IMPORTANT: ONLY HANDLE PLATFORM EVENTS
-  ======================================================= */
+        if (!userData) {
+          console.error("❌ User not found:", customerId);
+          break;
+        }
 
-  if (event.account) {
-    console.log("⏭ Skipping connected account event");
-    return NextResponse.json({ ignored: true });
-  }
+        // ✅ Status logic
+        let status: string = subscription.status;
 
-  /* =======================================================
-     🔍 GET USER FROM STRIPE CUSTOMER
-  ======================================================= */
+        if (subscription.cancel_at_period_end) {
+          status = "canceling";
+        }
 
-  let stripeCustomerId: string | null = null;
+        // ✅ Period end
+        const periodEnd =
+          subscription.current_period_end != null
+            ? new Date(subscription.current_period_end * 1000).toISOString()
+            : null;
 
-   if (typeof data.customer === "string") {
-    stripeCustomerId = data.customer;
-   }
+        // ✅ DB update
+        await supabaseAdmin
+          .from("users")
+          .update({
+            plan: "starter",
+            subscription_status: status,
+            stripe_subscription_id: subscription.id,
+            current_period_end: periodEnd,
+          })
+          .eq("id", userData.id);
 
-  if (eventType === "checkout.session.completed") {
-    stripeCustomerId = data.customer;
-  }
+        break;
+      }
 
-  if (eventType.startsWith("invoice.")) {
-    stripeCustomerId = data.customer;
-  } 
+      // ✅ PAYMENT SUCCESS
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as any;
 
-  if (eventType.startsWith("customer.subscription")) {
-    stripeCustomerId = data.customer;
-  }
+        // 🔥 FIX: cast to any (Stripe typing issue)
+        const subscriptionId = invoice.subscription;
 
-  if (!stripeCustomerId) {
-    console.error("❌ No customer ID found");
-    return NextResponse.json({ error: true });
-  }
+        if (!subscriptionId) break;
 
- let user = null;
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId) as any;
 
-// 🔥 PRIMARY: metadata (reliable)
-const metadataUserId = data.metadata?.user_id;
+        const userIdFromMeta = subscription.metadata?.user_id;
+        const customerId = subscription.customer as string;
 
-if (metadataUserId) {
-  const { data: metaUser } = await supabaseAdmin
-    .from("users")
-    .select("id")
-    .eq("id", metadataUserId)
-    .maybeSingle();
+        let userData = null;
 
-  user = metaUser;
-}
+        if (userIdFromMeta) {
+          const { data } = await supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("id", userIdFromMeta)
+            .single();
 
-// 🔁 FALLBACK: customer_id (legacy support)
-if (!user && stripeCustomerId) {
-  const { data: customerUser } = await supabaseAdmin
-    .from("users")
-    .select("id")
-    .eq("stripe_customer_id", stripeCustomerId)
-    .maybeSingle();
+          userData = data;
+        }
 
-  user = customerUser;
-}
+        if (!userData) {
+          const { data } = await supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("stripe_customer_id", customerId)
+            .single();
 
-if (!user) {
-  console.error("❌ No user found (metadata + customer lookup failed)");
-  return NextResponse.json({ error: true });
-}
+          userData = data;
+        }
 
-  if (!user) {
-    console.error("❌ No user for customer:", stripeCustomerId);
-    return NextResponse.json({ error: true });
-  }
+        if (!userData) break;
 
-  /* =======================================================
-     🎯 HANDLE EVENTS
-  ======================================================= */
+        await supabaseAdmin
+          .from("users")
+          .update({
+            subscription_status: "active",
+          })
+          .eq("id", userData.id);
 
- if (eventType === "customer.subscription.created") {
-  await supabaseAdmin
-    .from("users")
-    .update({
-      plan: "starter",
-      stripe_subscription_id: data.id,
-      subscription_status: data.status,
-      current_period_end: data.current_period_end
-  ? new Date(data.current_period_end * 1000).toISOString()
-  : null,
-    })
-    .eq("id", user.id);
-}
+        break;
+      }
 
-  if (eventType === "invoice.payment_succeeded") {
-    await supabaseAdmin
-      .from("users")
-      .update({
-        subscription_status: "active",
-      })
-      .eq("id", user.id);
-  }
+      // ❌ PAYMENT FAILED
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as any;
 
-  if (eventType === "invoice.payment_failed") {
-    await supabaseAdmin
-      .from("users")
-      .update({
-        subscription_status: "past_due",
-      })
-      .eq("id", user.id);
-  }
+        const customerId = invoice.customer as string;
 
-   if (eventType === "customer.subscription.updated") {
-  const isCanceling = data.cancel_at_period_end === true;
+        const { data: userData } = await supabaseAdmin
+          .from("users")
+          .select("id")
+          .eq("stripe_customer_id", customerId)
+          .single();
 
-  let periodEnd = null;
+        if (!userData) break;
 
-  // ✅ Try direct value first
-  if (data.current_period_end) {
-    periodEnd = new Date(data.current_period_end * 1000).toISOString();
-  } else {
-    console.log("⚠️ Missing period_end → fetching from Stripe API");
+        await supabaseAdmin
+          .from("users")
+          .update({
+            subscription_status: "past_due",
+          })
+          .eq("id", userData.id);
 
-    try {
-    const subscription = await stripe.subscriptions.retrieve(
-      data.id
-) as unknown as Stripe.Subscription;
-      const sub = subscription as any;
+        break;
+      }
 
-let rawPeriodEnd = sub.current_period_end;
+      // ❌ SUBSCRIPTION FULLY CANCELED
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as any;
 
-// 🔥 Fallback to item level if missing
-if (!rawPeriodEnd && sub.items?.data?.length > 0) {
-  rawPeriodEnd = sub.items.data[0].current_period_end;
-}
+        const customerId = subscription.customer as string;
+        const userIdFromMeta = subscription.metadata?.user_id;
 
-if (rawPeriodEnd) {
-  periodEnd = new Date(rawPeriodEnd * 1000).toISOString();
-}
-    } catch (err) {
-      console.error("❌ Failed to fetch subscription from Stripe:", err);
+        let userData = null;
+
+        if (userIdFromMeta) {
+          const { data } = await supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("id", userIdFromMeta)
+            .single();
+
+          userData = data;
+        }
+
+        if (!userData) {
+          const { data } = await supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("stripe_customer_id", customerId)
+            .single();
+
+          userData = data;
+        }
+
+        if (!userData) break;
+
+        await supabaseAdmin
+          .from("users")
+          .update({
+            subscription_status: "canceled",
+            plan: null,
+            stripe_subscription_id: null,
+            current_period_end: null,
+          })
+          .eq("id", userData.id);
+
+        break;
+      }
+
+      default:
+        console.log(`ℹ️ Unhandled event: ${event.type}`);
     }
+
+    return NextResponse.json({ received: true });
+
+  } catch (err: any) {
+    console.error("❌ Webhook error:", err);
+    return NextResponse.json({ error: "Webhook failed" }, { status: 500 });
   }
-
-  console.log("📅 FINAL PERIOD END:", periodEnd);
-
-  await supabaseAdmin
-    .from("users")
-    .update({
-      subscription_status: isCanceling ? "canceling" : data.status,
-      current_period_end: periodEnd,
-    })
-    .eq("id", user.id);
-}
-if (eventType === "customer.subscription.deleted") {
-  await supabaseAdmin
-    .from("users")
-    .update({
-      subscription_status: "canceled",
-      plan: null, // ✅ IMPORTANT FIX
-      stripe_subscription_id: null
-    })
-    .eq("id", user.id);
-}
-  return NextResponse.json({ received: true });
 }

@@ -2,81 +2,134 @@
 
 import { useState } from "react";
 
+type Plan   = "trial" | "starter" | "pro" | null;
+type Status = string; // "active" | "canceled" | "canceling" | "past_due" | "incomplete" | "unpaid" | "inactive"
+
+interface UpgradeButtonProps {
+  plan:              Plan;
+  status:            Status;
+  subscriptionId:    string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
 export default function UpgradeButton({
   plan,
   status,
-}: {
-  plan: string | null;
-  status: string;
-}) {
+  subscriptionId,
+  cancelAtPeriodEnd,
+}: UpgradeButtonProps) {
   const [loading, setLoading] = useState(false);
 
-  const handleUpgrade = async () => {
+  // ── Redirect to Stripe Checkout ──────────────────────────
+  const goToCheckout = async () => {
+    if (loading) return; // prevent duplicate clicks
+    setLoading(true);
     try {
-      setLoading(true);
-
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-      });
-
+      const res  = await fetch("/api/stripe/checkout", { method: "POST" });
       const data = await res.json();
-
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert("Failed to create checkout session.");
+        alert("Failed to create checkout session. Please try again.");
       }
-    } catch (error) {
-      console.error("Upgrade error:", error);
-      alert("Something went wrong.");
+    } catch (err) {
+      console.error("Checkout error:", err);
+      alert("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ 1. ACTIVE STARTER (REAL SUBSCRIPTION)
-if (status === "active" && plan === "starter") {
-  return (
-    <button disabled className="...">
-      Current Plan (Starter)
-    </button>
-  );
-}
+  // ────────────────────────────────────────────────────────
+  // CASE 1 — Active Starter subscription
+  // Show "Upgrade to Pro (Coming Soon)" — no redirect to Stripe
+  // ────────────────────────────────────────────────────────
+  if (plan === "starter" && status === "active" && !cancelAtPeriodEnd) {
+    return (
+      <button
+        onClick={() => alert("🚧 Pro plan coming soon. Stay tuned!")}
+        className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold transition"
+      >
+        Upgrade to Pro (Coming Soon)
+      </button>
+    );
+  }
 
-// ✅ 2. REACTIVATE (CANCELED BUT HAD SUB)
-if (status === "canceled") {
+  // ────────────────────────────────────────────────────────
+  // CASE 2 — Canceling (scheduled to cancel at period end)
+  // cancelAtPeriodEnd = true OR status = "canceling" (set by webhook)
+  // Informational only — Cancel button is hidden in this state
+  // ────────────────────────────────────────────────────────
+  if (status === "canceling" || (status === "active" && cancelAtPeriodEnd)) {
+    return (
+      <button
+        disabled
+        className="bg-zinc-800 text-zinc-400 border border-zinc-700 px-5 py-2.5 rounded-xl text-sm font-semibold cursor-not-allowed"
+      >
+        Cancels at Period End
+      </button>
+    );
+  }
+
+  // ────────────────────────────────────────────────────────
+  // CASE 3 — Subscription was canceled (fully ended)
+  // Let the user reactivate with a new checkout
+  // ────────────────────────────────────────────────────────
+  if (status === "canceled") {
+    return (
+      <button
+        onClick={goToCheckout}
+        disabled={loading}
+        className="bg-amber-500 hover:bg-amber-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? "Redirecting..." : "Reactivate Subscription"}
+      </button>
+    );
+  }
+
+  // ────────────────────────────────────────────────────────
+  // CASE 4 — Payment failed (Stripe status: past_due)
+  // User needs to update their payment method
+  // ────────────────────────────────────────────────────────
+  if (status === "past_due") {
+    return (
+      <button
+        onClick={goToCheckout}
+        disabled={loading}
+        className="bg-rose-500 hover:bg-rose-400 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? "Redirecting..." : "Fix Payment"}
+      </button>
+    );
+  }
+
+  // ────────────────────────────────────────────────────────
+  // CASE 5 — Incomplete or unpaid
+  // Checkout was started but not completed, or first payment failed
+  // ────────────────────────────────────────────────────────
+  if (status === "incomplete" || status === "unpaid") {
+    return (
+      <button
+        onClick={goToCheckout}
+        disabled={loading}
+        className="bg-orange-500 hover:bg-orange-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? "Redirecting..." : "Complete Payment"}
+      </button>
+    );
+  }
+
+  // ────────────────────────────────────────────────────────
+  // DEFAULT — Trial (or any unrecognized state)
+  // New user, start the Starter plan
+  // ────────────────────────────────────────────────────────
   return (
     <button
-      onClick={handleUpgrade}
+      onClick={goToCheckout}
       disabled={loading}
-      className="mt-6 inline-block rounded-lg bg-yellow-500 px-6 py-3 font-semibold text-black hover:bg-yellow-400 transition"
+      className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {loading ? "Redirecting..." : "Reactivate Subscription"}
+      {loading ? "Redirecting..." : "Start Starter Plan"}
     </button>
   );
-}
-
-// ✅ 3. PAST DUE (FAILED PAYMENT)
-if (status === "past_due") {
-  return (
-    <button
-      onClick={handleUpgrade}
-      disabled={loading}
-      className="mt-6 inline-block rounded-lg bg-red-500 px-6 py-3 font-semibold text-black hover:bg-red-400 transition"
-    >
-      {loading ? "Redirecting..." : "Fix Payment"}
-    </button>
-  );
-}
-
-// ✅ 4. DEFAULT → NEW USER / TRIAL / NO PLAN
-return (
-  <button
-    onClick={handleUpgrade}
-    disabled={loading}
-    className="mt-6 inline-block rounded-lg bg-green-500 px-6 py-3 font-semibold text-black hover:bg-green-400 transition disabled:opacity-50"
-  >
-    {loading ? "Redirecting..." : "Start Starter Plan"}
-  </button>
-);
 }

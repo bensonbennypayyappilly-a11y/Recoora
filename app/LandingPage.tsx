@@ -716,7 +716,7 @@ export default function LandingPage() {
               >
                 Start 14-day free trial
               </a>
-              <p className="text-xs text-zinc-400 text-center mt-3">Setup in under 2 minutes</p>
+              <p className="text-xs text-zinc-400 text-center mt-3">Setup in under 5 minutes</p>
             </div>
 
             {/* GROWTH — Featured */}
@@ -740,9 +740,8 @@ export default function LandingPage() {
                   { text: "Everything in Starter", ai: false },
                   { text: "AI-personalized recovery emails", ai: true },
                   { text: "Email + Slack notifications", ai: false },
-                  { text: "Up to 3 Stripe accounts", ai: false },
                   { text: "30-day alert history", ai: false },
-                  { text: "Priority support", ai: false },
+                  
                 ].map((f) => (
                   <li key={f.text} className="flex items-start gap-3 text-zinc-600">
                     <span className={`shrink-0 mt-0.5 ${f.ai ? "text-violet-500" : "text-emerald-500"}`}>

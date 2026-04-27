@@ -55,24 +55,58 @@ const data = event.data.object as any;
     return NextResponse.json({ error: true });
   }
 
+  
+
   // ── customer.subscription.created ─────────────────────────
   // Sets plan, subscription ID, status, and period end.
   // Only one block — the duplicate is removed.
   if (eventType === "customer.subscription.created") {
-    const sub = data;
-    await supabaseAdmin
-      .from("users")
-      .update({
-        plan: "starter",
-        stripe_subscription_id: sub.id,
-        subscription_status: sub.status,
-        current_period_end: new Date(
-          sub.current_period_end * 1000
-        ).toISOString(),
-      })
-      .eq("id", user.id);
+    const sub = data as Stripe.Subscription;
+
+const periodEnd =
+  typeof (sub as any).current_period_end === "number"
+    ? (sub as any).current_period_end
+    : null;
+
+await supabaseAdmin
+  .from("users")
+  .update({
+    plan: "starter",
+    stripe_subscription_id: sub.id,
+    subscription_status: sub.status,
+    current_period_end: periodEnd
+      ? new Date(periodEnd * 1000).toISOString()
+      : null,
+  })
+  .eq("id", user.id);
   }
 
+  if (eventType === "checkout.session.completed") {
+  const session = data as Stripe.Checkout.Session;
+
+if (session.mode === "subscription") {
+  const subscriptionId = session.subscription as string;
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  const periodEnd =
+    typeof (subscription as any).current_period_end === "number"
+      ? (subscription as any).current_period_end
+      : null;
+
+  await supabaseAdmin
+    .from("users")
+    .update({
+      plan: "starter",
+      stripe_subscription_id: subscription.id,
+      subscription_status: subscription.status,
+      current_period_end: periodEnd
+        ? new Date(periodEnd * 1000).toISOString()
+        : null,
+    })
+    .eq("id", user.id);
+}
+}
   // ── customer.subscription.updated ─────────────────────────
   // Fired when cancel_at_period_end changes, plan changes, etc.
   // Does NOT overwrite plan — webhook is only source of truth for status.

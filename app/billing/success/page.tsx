@@ -22,7 +22,7 @@ export default function BillingSuccessPage() {
 
         <p className="text-zinc-400 text-sm mb-6">
           Your subscription has been updated successfully.
-          You now have access to Pro features.
+          You now have access toGrowth features.
         </p>
 
         <a

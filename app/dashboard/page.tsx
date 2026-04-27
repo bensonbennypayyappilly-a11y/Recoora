@@ -13,7 +13,7 @@ import SlackConnectBanner from "../components/SlackConnectBanner";
 import LiveAlerts from "../components/LiveAlerts";
 import { useRouter } from "next/navigation";
 
-type Plan = "trial" | "starter" | "pro";
+type Plan = "trial" | "starter" | "Growth";
 
 type AtRiskCustomer = {
   email: string;
@@ -54,7 +54,7 @@ const handleLogout = async () => {
 };
   
 
-  const isPro = plan === "pro";
+  const isPro = plan === "Growth";
   const isTrialExpired =
     plan === "trial" && trialEndsAt && new Date(trialEndsAt) < new Date();
   const lockedRanges = ["15", "30", "60"];

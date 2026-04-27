@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import UpgradeButton from "@/components/UpgradeButton";
 
-type Plan = "trial" | "starter" | "pro" | null;
+type Plan = "trial" | "starter" | "Growth" | null;
 type Tab  = "account" | "notifications" | "integrations" | "security" | "billing";
 
 export default function SettingsPage() {
@@ -126,7 +126,7 @@ function AccountSection() {
 /* ── BILLING SECTION ── */
 function BillingSection() {
   const [loading, setLoading] = useState(true);
-  const [plan, setPlan] = useState<"trial" | "starter" | "pro">("trial");
+  const [plan, setPlan] = useState<"trial" | "starter" | "Growth">("trial");
   const [status, setStatus] = useState("trial");
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -255,10 +255,10 @@ const isCanceledEffective = effectiveStatus === "canceled";
               </button>
             )}
 
-            {/* Active starter → Upgrade to Pro (coming soon) */}
+            {/* Active starter → Upgrade toGrowth (coming soon) */}
             {isActiveEffective && (
               <button
-                onClick={() => alert("🚧 Pro plan launching soon")}
+                onClick={() => alert("🚧Growth plan launching soon")}
                 className="bg-emerald-500 hover:bg-emerald-400 text-black px-6 py-3 rounded-xl font-semibold"
               >
                 Upgrade to Pro
@@ -364,12 +364,12 @@ function NotificationSection() {
               {label}
               <span className="ml-2 text-xs text-emerald-400">(Upgrade)</span>
             </span>
-            <p className="text-xs text-zinc-500 mt-1">Available in Pro plan</p>
+            <p className="text-xs text-zinc-500 mt-1">Available inGrowth plan</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-12 h-6 rounded-full bg-zinc-700" />
             <button
-              onClick={() => alert("🚧 Pro plan launching soon")}
+              onClick={() => alert("🚧Growth plan launching soon")}
               className="text-xs text-emerald-400 hover:underline"
             >
               Upgrade

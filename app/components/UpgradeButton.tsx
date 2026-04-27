@@ -7,7 +7,7 @@
 import { useState } from "react";
 
 
-type Plan   = "trial" | "starter" | "pro" | null;
+type Plan   = "trial" | "starter" | "Growth" | null;
 type Status = string; // "active" | "canceled" | "canceling" | "past_due" | "incomplete" | "unpaid" | "inactive"
 
 interface UpgradeButtonProps {
@@ -53,16 +53,16 @@ const effectiveStatus = localStatus ?? status;
 
   // ────────────────────────────────────────────────────────
   // CASE 1 — Active Starter subscription
-  // Show "Upgrade to Pro (Coming Soon)" — no redirect to Stripe
+  // Show "Upgrade to Growth (Coming Soon)" — no redirect to Stripe
   // ────────────────────────────────────────────────────────
   if (plan === "starter" && effectiveStatus === "active" && !cancelAtPeriodEnd) {
   return (
     
       <button
-        onClick={() => alert("🚧 Pro plan coming soon. Stay tuned!")}
+        onClick={() => alert("🚧Growth plan coming soon. Stay tuned!")}
         className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold"
       >
-        Upgrade to Pro
+        Upgrade to Growth
       </button>
    
   );

@@ -11,6 +11,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const isBrowser = typeof window !== "undefined";
 
   const [validations, setValidations] = useState({
     length: false,
@@ -20,48 +21,46 @@ export default function ResetPasswordPage() {
     special: false,
   });
   
-  console.log("🔑 URL HASH:", window.location.hash);
-
   
+
+
 useEffect(() => {
+  if (typeof window === "undefined") return;
+
   let mounted = true;
 
   console.log("🚀 Reset page loaded");
-  console.log("🌐 Current URL:", window.location.href);
 
   const init = async () => {
     console.log("🔍 Checking session...");
 
-    // STEP 1 — Check existing session
-    const { data: sessionData, error: sessionError } =
+    const { data: sessionData, error } =
       await supabase.auth.getSession();
 
-    console.log("📦 getSession result:", sessionData);
-    console.log("❌ getSession error:", sessionError);
+    console.log("📦 session:", sessionData);
+    console.log("❌ error:", error);
 
     if (sessionData.session && mounted) {
-      console.log("✅ Session already exists");
+      console.log("✅ Session exists");
       setSessionReady(true);
       return;
     }
 
-    console.log("⏳ No session yet, waiting for auth event...");
+    console.log("⏳ Waiting for auth event...");
   };
 
   init();
 
-  // STEP 2 — Listen for recovery event
   const { data: listener } = supabase.auth.onAuthStateChange(
     (event, session) => {
-      console.log("⚡ Auth event triggered:", event);
-      console.log("📦 Session from event:", session);
+      console.log("⚡ Event:", event);
 
       if (
         (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") &&
         session &&
         mounted
       ) {
-        console.log("✅ Session established via event");
+        console.log("✅ Session established");
         setSessionReady(true);
       }
     }

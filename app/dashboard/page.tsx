@@ -92,12 +92,12 @@ setUserId(sessionData.session.user.id);
 
       if (userData) {
         setPlan(userData.plan);
-        setTrialEndsAt(userData.trial_ends_at);
-        setStripeConnected(!!userData.stripe_account_id);
-        setStripeAccountId(userData.stripe_account_id);
-        stripeAccountIdRef.current = userData.stripe_account_id;
-        setSlackConnected(!!userData.slack_connected);
-        setSubscriptionStatus(userData.subscription_status);
+setTrialEndsAt(userData.trial_ends_at);
+setStripeConnected(!!userData.stripe_account_id);
+setStripeAccountId(userData.stripe_account_id);
+stripeAccountIdRef.current = userData.stripe_account_id;
+setSlackConnected(!!userData.slack_connected);
+setSubscriptionStatus(userData.subscription_status);
       }
   
       
@@ -596,7 +596,7 @@ if (
             <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
               <span className="text-amber-400 text-lg font-bold">!</span>
             </div>
-            <h2 className="text-lg font-semibold text-white">Trial expired</h2>
+            <h2 className="text-lg font-semibold text-white">plan={plan} expired</h2>
             <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
               Upgrade to continue monitoring your Stripe revenue in real-time.
             </p>

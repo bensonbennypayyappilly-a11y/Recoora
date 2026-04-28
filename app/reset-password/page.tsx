@@ -14,34 +14,59 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    // With implicit flow, Supabase puts #access_token in the URL hash.
-    // onAuthStateChange fires PASSWORD_RECOVERY automatically when it detects this.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === "PASSWORD_RECOVERY" && session) {
-          setSessionValid(true);
-          setChecking(false);
-        }
-      }
-    );
-
-    // Also check if a session already exists (page refresh case)
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
+    const init = async () => {
+      // Step 1: Check if session already exists (e.g. page refresh)
+      const { data: existing } = await supabase.auth.getSession();
+      if (existing.session) {
         setSessionValid(true);
         setChecking(false);
+        return;
       }
-    });
 
-    // Timeout — if no recovery event in 6s, the link is bad
-    const timeout = setTimeout(() => {
+      // Step 2: Parse hash manually — implicit flow puts token in hash
+      // e.g. #access_token=xxx&refresh_token=yyy&type=recovery
+      const hash = window.location.hash;
+
+      if (!hash || !hash.includes("access_token")) {
+        // No hash — link is genuinely expired or already used
+        setSessionValid(false);
+        setChecking(false);
+        return;
+      }
+
+      // Step 3: Parse the hash params
+      const params = new URLSearchParams(hash.replace("#", ""));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+      const type = params.get("type");
+
+      if (!accessToken || !refreshToken || type !== "recovery") {
+        setSessionValid(false);
+        setChecking(false);
+        return;
+      }
+
+      // Step 4: Set the session explicitly using the tokens from the hash
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      if (error) {
+        console.error("setSession error:", error.message);
+        setSessionValid(false);
+        setChecking(false);
+        return;
+      }
+
+      // Step 5: Clean the hash from the URL so it's not reused
+      window.history.replaceState(null, "", window.location.pathname);
+
+      setSessionValid(true);
       setChecking(false);
-    }, 6000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
     };
+
+    init();
   }, []);
 
   const handleUpdate = async (e: React.FormEvent) => {

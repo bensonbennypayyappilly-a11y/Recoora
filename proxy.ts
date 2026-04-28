@@ -2,6 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // ✅ Never intercept the auth callback — it must run unmodified
+  // The Route Handler sets its own cookies on its own response object
+  if (pathname.startsWith("/auth")) {
+    return NextResponse.next();
+  }
+
   const res = NextResponse.next({
     request: { headers: req.headers },
   });
@@ -26,17 +34,14 @@ export async function proxy(req: NextRequest) {
     }
   );
 
-  // Refresh session — required for Server Components to see latest auth state
   const { data: { session } } = await supabase.auth.getSession();
-
-  const { pathname } = req.nextUrl;
 
   // Protect dashboard routes
   if (!session && pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Don't redirect authenticated users away from reset-password
+  // Redirect authenticated users away from login/signup
   if (
     session &&
     (pathname.startsWith("/login") || pathname.startsWith("/signup"))
@@ -48,5 +53,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/signup"],
+  matcher: ["/dashboard/:path*", "/login", "/signup", "/auth/:path*"],
 };

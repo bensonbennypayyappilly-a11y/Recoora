@@ -14,12 +14,8 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    // By the time user arrives here, auth/callback has already exchanged
-    // the code and written the session cookie. getSession() reads that cookie.
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setSessionValid(true);
-      }
+      setSessionValid(!!data.session);
       setChecking(false);
     });
   }, []);
@@ -49,15 +45,10 @@ export default function ResetPasswordPage() {
 
     setSuccess(true);
     await supabase.auth.signOut();
-
-    setTimeout(() => {
-      window.location.href = "/login";
-    }, 2000);
-
+    setTimeout(() => { window.location.href = "/login"; }, 2000);
     setLoading(false);
   };
 
-  // Still checking cookie
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50">
@@ -66,7 +57,6 @@ export default function ResetPasswordPage() {
     );
   }
 
-  // Cookie check done, no session found = link expired or already used
   if (!sessionValid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
@@ -75,10 +65,7 @@ export default function ResetPasswordPage() {
           <p className="text-sm text-zinc-500 mb-6">
             This reset link has already been used or has expired.
           </p>
-          <Link
-            href="/forgot-password"
-            className="text-emerald-500 hover:underline text-sm"
-          >
+          <Link href="/forgot-password" className="text-emerald-500 hover:underline text-sm">
             Request a new reset link
           </Link>
         </div>
@@ -111,6 +98,7 @@ export default function ResetPasswordPage() {
           />
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
+
           {success && (
             <p className="text-emerald-600 text-sm">
               Password updated. Redirecting to login...

@@ -25,79 +25,38 @@ export default function ResetPasswordPage() {
 
 
 useEffect(() => {
-  const init = async () => {
-    console.log("🚀 Reset page init started");
+  console.log("🚀 Reset page loaded");
 
-    try {
-      // STEP 1 — Check window
-      if (typeof window === "undefined") {
-        console.log("❌ Not running in browser");
-        return;
-      }
+  // 🔥 Listen for auth event (main trigger)
+  const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    console.log("🔔 Auth event:", event);
+    console.log("📦 Session:", session);
 
-      console.log("🌐 Current URL:", window.location.href);
+    if (event === "PASSWORD_RECOVERY" || session) {
+      console.log("✅ Session ready via event");
+      setSessionReady(true);
+    }
+  });
 
-      // STEP 2 — Extract hash
-      const hash = window.location.hash;
-      console.log("🔗 URL hash:", hash);
+  // 🧪 Fallback check (important)
+  const checkSession = async () => {
+    console.log("🔍 Checking existing session...");
 
-      if (!hash) {
-        console.log("❌ No hash found");
-        setError("Invalid reset link (no hash)");
-        return;
-      }
+    const { data } = await supabase.auth.getSession();
 
-      // STEP 3 — Parse hash params
-      const params = new URLSearchParams(hash.substring(1));
-
-      const access_token = params.get("access_token");
-      const type = params.get("type");
-
-      console.log("🔑 access_token:", access_token);
-      console.log("📌 type:", type);
-
-      if (!access_token) {
-        console.log("❌ No access_token in hash");
-        setError("Invalid reset link (missing token)");
-        return;
-      }
-
-      if (type !== "recovery") {
-        console.log("⚠️ Not a recovery link, type =", type);
-      }
-
-      // STEP 4 — Wait a bit (important for Supabase to hydrate session)
-      console.log("⏳ Waiting 500ms for session hydration...");
-      await new Promise((res) => setTimeout(res, 500));
-
-      // STEP 5 — Get session
-      console.log("🔍 Fetching session...");
-      const { data, error } = await supabase.auth.getSession();
-
-      console.log("📦 session response:", data);
-      console.log("❌ session error:", error);
-
-      if (error) {
-        console.log("❌ Error while getting session");
-        setError(error.message);
-        return;
-      }
-
-      if (data.session) {
-        console.log("✅ Session established successfully");
-        setSessionReady(true);
-      } else {
-        console.log("❌ Session is NULL");
-        setError("Session not established");
-      }
-
-    } catch (err: any) {
-      console.error("💥 Unexpected error:", err);
-      setError("Something went wrong");
+    if (data.session) {
+      console.log("✅ Session already exists");
+      setSessionReady(true);
+    } else {
+      console.log("❌ No session yet");
     }
   };
 
-  init();
+  checkSession();
+
+  return () => {
+    listener.subscription.unsubscribe();
+  };
 }, []);
 
   // ✅ Password strength validation

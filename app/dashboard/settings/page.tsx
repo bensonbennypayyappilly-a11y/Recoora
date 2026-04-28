@@ -170,26 +170,26 @@ const handleCancel = async () => {
   setCancelLoading(true);
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
 
-const res = await fetch("/api/stripe/cancel", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${session?.access_token}`,
-  },
-});
+    const res = await fetch("/api/payments/cancel", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: user?.id,
+      }),
+    });
 
     if (!res.ok) throw new Error("Cancel failed");
 
-    // immediate sync attempt
     await fetchBilling();
 
-    // fallback sync
     setTimeout(fetchBilling, 3000);
     setTimeout(fetchBilling, 6000);
 
     setCancelLoading(false);
-// ❌ DO NOT reset localStatus here
 
   } catch (err) {
     setLocalStatus(null);
@@ -199,7 +199,7 @@ const res = await fetch("/api/stripe/cancel", {
 };
 
   const handleCheckout = async () => {
-    const res = await fetch("/api/stripe/checkout", { method: "POST" });
+    const res = await fetch("/api/payments/checkout", { method: "POST" });
     const data = await res.json();
     if (data.url) window.location.href = data.url;
     else alert("Failed to create checkout session.");

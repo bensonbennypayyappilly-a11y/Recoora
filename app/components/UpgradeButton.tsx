@@ -36,7 +36,7 @@ const effectiveStatus = localStatus ?? status;
     if (loading) return; // prevent duplicate clicks
     setLoading(true);
     try {
-      const res  = await fetch("/api/stripe/checkout", { method: "POST" });
+      const res  = await fetch("/api/payments/checkout", { method: "POST" });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;

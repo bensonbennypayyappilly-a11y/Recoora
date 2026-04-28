@@ -32,21 +32,39 @@ useEffect(() => {
   console.log("🚀 Reset page loaded");
 
   const init = async () => {
-    console.log("🔍 Checking session...");
+  console.log("🔍 Checking session...");
 
-    const { data: sessionData, error } =
-      await supabase.auth.getSession();
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code");
 
-    console.log("📦 session:", sessionData);
-    console.log("❌ error:", error);
+  if (code) {
+    console.log("🔐 Found code, exchanging...");
 
-    if (sessionData.session && mounted) {
-  console.log("✅ Session already available");
-  setSessionReady(true);
-}
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-    console.log("⏳ Waiting for auth event...");
-  };
+    if (error) {
+      console.error("❌ Exchange failed:", error.message);
+      setError("Invalid or expired reset link");
+      return;
+    }
+
+    console.log("✅ Code exchanged successfully");
+
+    setSessionReady(true);
+    return;
+  }
+
+  // fallback
+  const { data } = await supabase.auth.getSession();
+
+  if (data.session) {
+    console.log("✅ Session exists");
+    setSessionReady(true);
+  } else {
+    console.log("❌ No session found");
+    setError("Invalid or expired reset link");
+  }
+};
 
   init();
 

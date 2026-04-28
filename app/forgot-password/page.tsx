@@ -7,7 +7,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import FooterLogo from "@/components/FooterLogo";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -100,7 +99,7 @@ export default function ForgotPasswordPage() {
         </div>
 
       </div>
-      <FooterLogo />
+      
     </main>
   );
 }

@@ -42,7 +42,7 @@ export default function Dashboard() {
   const processedResolvedInvoices = useRef<Set<string>>(new Set());
   const processedInsertedInvoices = useRef<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
-  const [subscription_status, setSubscriptionStatus] = useState<string>("inactive");
+  const [subscription_status, setSubscriptionStatus] = useState<string | null>(null);
 
 
   const router = useRouter();
@@ -56,11 +56,13 @@ const handleLogout = async () => {
 
   const isPro = plan === "Growth";
   const isBillingInactive =
-  subscription_status !== "active" &&
-  !(
-    plan === "trial" &&
-    trialEndsAt &&
-    new Date(trialEndsAt) > new Date()
+  subscription_status !== null && (
+    subscription_status !== "active" &&
+    !(
+      plan === "trial" &&
+      trialEndsAt &&
+      new Date(trialEndsAt) > new Date()
+    )
   );
   const lockedRanges = ["15", "30", "60"];
   const isLocked = (r: string) => lockedRanges.includes(r) && !isPro;
@@ -73,17 +75,18 @@ const fetchDashboardData = async () => {
   return;
 }
 
-if (isBillingInactive) {
-  setAlerts([]);
-  setPeriodStats({ revenue: 0, failed: 0, lost: 0 });
-  setUnattended(0);
-  return;
-}
 
 setUserId(sessionData.session.user.id);
       const { data: userData } = await supabase
         .from("users")
-        .select("plan, trial_ends_at, stripe_account_id, slack_connected")
+        .select(`
+  plan,
+  trial_ends_at,
+  stripe_account_id,
+  slack_connected,
+  subscription_status,
+  current_period_end
+`)
         .eq("id", sessionData.session.user.id)
         .single();
 
@@ -94,17 +97,34 @@ setUserId(sessionData.session.user.id);
         setStripeAccountId(userData.stripe_account_id);
         stripeAccountIdRef.current = userData.stripe_account_id;
         setSlackConnected(!!userData.slack_connected);
+        setSubscriptionStatus(userData.subscription_status);
       }
   
-      const { data: billingData } = await supabase
-  .from("users")
-  .select("plan, subscription_status")
-  .eq("id", sessionData.session.user.id)
-  .single();
+      
 
-if (billingData) {
-  setPlan(billingData.plan);
-  setSubscriptionStatus(billingData.subscription_status);
+
+const now = new Date();
+
+const isTrialValid =
+  userData?.plan === "trial" &&
+  userData?.trial_ends_at &&
+  new Date(userData.trial_ends_at) > now;
+
+const isActive = userData?.subscription_status === "active";
+
+const isCanceling =
+  userData?.subscription_status === "canceling" &&
+  userData?.current_period_end &&
+  new Date(userData.current_period_end) > now;
+
+const billingActive = isActive || isTrialValid || isCanceling;
+
+if (!billingActive) {
+  setAlerts([]);
+  setPeriodStats({ revenue: 0, failed: 0, lost: 0 });
+  setUnattended(0);
+  setCheckingSession(false);
+  return;
 }
       
       const acctId = userData?.stripe_account_id;

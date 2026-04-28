@@ -6,6 +6,7 @@ export async function GET(req: NextRequest) {
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next") ?? "/";
 
+  // No code = bad link
   if (!code) {
     return NextResponse.redirect(
       new URL("/login?error=missing_code", req.url)
@@ -17,8 +18,11 @@ export async function GET(req: NextRequest) {
       ? new URL("/reset-password", req.url)
       : new URL("/email-verified", req.url);
 
+  // Build response first — cookies are written onto THIS response object
   const response = NextResponse.redirect(redirectTo);
 
+  // Must use req.cookies / response.cookies pattern — NOT next/headers cookies()
+  // next/headers cookies() is read-only in Route Handlers and cannot write Set-Cookie
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -40,11 +44,12 @@ export async function GET(req: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    console.error("❌ Auth exchange failed:", error.message);
+    console.error("❌ Code exchange failed:", error.message);
     return NextResponse.redirect(
-      new URL("/login?error=auth", req.url)
+      new URL("/login?error=expired_link", req.url)
     );
   }
 
+  // Session cookie is now on `response` — browser receives it on redirect
   return response;
 }

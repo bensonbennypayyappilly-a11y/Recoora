@@ -2,204 +2,128 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import Link from "next/link";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [sessionValid, setSessionValid] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [sessionReady, setSessionReady] = useState(false);
-  const isBrowser = typeof window !== "undefined";
 
-  const [validations, setValidations] = useState({
-    length: false,
-    uppercase: false,
-    lowercase: false,
-    number: false,
-    special: false,
-  });
-  
-  
-
-
-useEffect(() => {
-  console.log("🚀 Reset page loaded");
-
-  // 🔥 Listen for auth event (main trigger)
-  const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-    console.log("🔔 Auth event:", event);
-    console.log("📦 Session:", session);
-
-    if (event === "PASSWORD_RECOVERY" || session) {
-      console.log("✅ Session ready via event");
-      setSessionReady(true);
-    }
-  });
-
-  // 🧪 Fallback check (important)
-  const checkSession = async () => {
-    console.log("🔍 Checking existing session...");
-
-    const { data } = await supabase.auth.getSession();
-
-    if (data.session) {
-      console.log("✅ Session already exists");
-      setSessionReady(true);
-    } else {
-      console.log("❌ No session yet");
-    }
-  };
-
-  checkSession();
-
-  return () => {
-    listener.subscription.unsubscribe();
-  };
-}, []);
-
-  // ✅ Password strength validation
   useEffect(() => {
-    setValidations({
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[^A-Za-z0-9]/.test(password),
+    // By the time user arrives here, auth/callback has already exchanged
+    // the code and written the session cookie. getSession() reads that cookie.
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        setSessionValid(true);
+      }
+      setChecking(false);
     });
-  }, [password]);
+  }, []);
 
-  const isPasswordValid = Object.values(validations).every(Boolean);
-
-  const handleUpdate = async (e: any) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setError("");
-    setSuccess(false);
 
-    // ✅ Check validation
-    if (!isPasswordValid) {
-      setError("Password does not meet requirements.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
       return;
     }
-
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
-   setLoading(true);
+    setLoading(true);
 
-// ✅ Check session FIRST
-const {
-  data: { session },
-} = await supabase.auth.getSession();
+    const { error } = await supabase.auth.updateUser({ password });
 
-if (!session) {
-  setError("Session expired. Please request a new reset link.");
-  setLoading(false);
-  return;
-}
-
-// ✅ Then update password
-const { error } = await supabase.auth.updateUser({
-  password,
-});
-
-if (error) {
-  setError(error.message);
-  setLoading(false);
-  return;
-}
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
 
     setSuccess(true);
-setLoading(false);
+    await supabase.auth.signOut();
 
-// ✅ redirect after success
-setTimeout(() => {
-  window.location.href = "/login";
-}, 2000);
+    setTimeout(() => {
+      window.location.href = "/login";
+    }, 2000);
+
+    setLoading(false);
   };
 
-  if (!sessionReady) {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p>
-        {error ? error : "Verifying reset link..."}
-      </p>
-    </div>
-  );
-}
+  // Still checking cookie
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+        <p className="text-zinc-500 text-sm">Verifying reset link...</p>
+      </div>
+    );
+  }
+
+  // Cookie check done, no session found = link expired or already used
+  if (!sessionValid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
+        <div className="text-center max-w-sm">
+          <h1 className="text-xl font-bold text-zinc-900 mb-3">Link expired</h1>
+          <p className="text-sm text-zinc-500 mb-6">
+            This reset link has already been used or has expired.
+          </p>
+          <Link
+            href="/forgot-password"
+            className="text-emerald-500 hover:underline text-sm"
+          >
+            Request a new reset link
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-md">
-
-        <h1 className="text-xl font-bold mb-2">Reset Password</h1>
-        <p className="text-sm text-zinc-500 mb-6">
-          Enter a strong new password.
-        </p>
+        <h1 className="text-xl font-bold mb-2">Set new password</h1>
+        <p className="text-sm text-zinc-500 mb-6">Choose a strong password.</p>
 
         <form onSubmit={handleUpdate} className="space-y-4">
-
-          {/* Password */}
           <input
             type="password"
             placeholder="New password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded-xl"
+            required
+            className="w-full px-4 py-2 border rounded-xl text-sm"
           />
-
-          {/* Confirm */}
           <input
             type="password"
             placeholder="Confirm password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded-xl"
+            required
+            className="w-full px-4 py-2 border rounded-xl text-sm"
           />
 
-          {/* Validation UI */}
-          <div className="text-xs space-y-1">
-            <p className={validations.length ? "text-green-500" : "text-red-500"}>
-              • At least 8 characters
-            </p>
-            <p className={validations.uppercase ? "text-green-500" : "text-red-500"}>
-              • One uppercase letter
-            </p>
-            <p className={validations.lowercase ? "text-green-500" : "text-red-500"}>
-              • One lowercase letter
-            </p>
-            <p className={validations.number ? "text-green-500" : "text-red-500"}>
-              • One number
-            </p>
-            <p className={validations.special ? "text-green-500" : "text-red-500"}>
-              • One special character
-            </p>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <p className="text-red-500 text-sm">{error}</p>
-          )}
-
-          {/* Success */}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
           {success && (
-            <p className="text-green-600 text-sm">
-              Password updated successfully. You can now log in.
+            <p className="text-emerald-600 text-sm">
+              Password updated. Redirecting to login...
             </p>
           )}
 
           <button
-  type="submit"
-  disabled={loading}
-  className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black py-2 rounded-xl font-semibold"
->
-  {loading ? "Updating..." : "Update Password"}
-</button>
-
+            type="submit"
+            disabled={loading}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black py-2.5 rounded-xl font-semibold text-sm"
+          >
+            {loading ? "Updating..." : "Update Password"}
+          </button>
         </form>
       </div>
     </main>

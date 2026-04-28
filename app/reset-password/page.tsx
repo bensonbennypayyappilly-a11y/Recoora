@@ -12,56 +12,105 @@ export default function ResetPasswordPage() {
   const [sessionValid, setSessionValid] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+
+  const log = (msg: string) => {
+    console.log("[RESET]", msg);
+    setDebugLog((prev) => [...prev, msg]);
+  };
 
   useEffect(() => {
     const init = async () => {
-      // Step 1: Check if session already exists (e.g. page refresh)
-      const { data: existing } = await supabase.auth.getSession();
+      log("1. Page mounted");
+      log("2. Full URL: " + window.location.href);
+      log("3. Hash: " + (window.location.hash || "(empty)"));
+      log("4. Search: " + (window.location.search || "(empty)"));
+
+      // Step A — check existing session
+      log("5. Checking existing session...");
+      const { data: existing, error: sessErr } = await supabase.auth.getSession();
+      log("6. getSession result: " + JSON.stringify({
+        hasSession: !!existing.session,
+        userId: existing.session?.user?.id ?? null,
+        error: sessErr?.message ?? null,
+      }));
+
       if (existing.session) {
+        log("7. ✅ Session already exists — showing form");
         setSessionValid(true);
         setChecking(false);
         return;
       }
 
-      // Step 2: Parse hash manually — implicit flow puts token in hash
-      // e.g. #access_token=xxx&refresh_token=yyy&type=recovery
+      // Step B — parse hash
       const hash = window.location.hash;
+      log("8. Hash value: '" + hash + "'");
 
-      if (!hash || !hash.includes("access_token")) {
-        // No hash — link is genuinely expired or already used
+      if (!hash || hash.length < 2) {
+        log("9. ❌ No hash found — link expired or already used");
         setSessionValid(false);
         setChecking(false);
         return;
       }
 
-      // Step 3: Parse the hash params
       const params = new URLSearchParams(hash.replace("#", ""));
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
       const type = params.get("type");
+      const errorCode = params.get("error_code");
+      const errorDesc = params.get("error_description");
 
-      if (!accessToken || !refreshToken || type !== "recovery") {
+      log("10. Parsed hash params: " + JSON.stringify({
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        type,
+        errorCode,
+        errorDesc,
+      }));
+
+      if (errorCode) {
+        log("11. ❌ Supabase returned error in hash: " + errorCode + " — " + errorDesc);
         setSessionValid(false);
         setChecking(false);
         return;
       }
 
-      // Step 4: Set the session explicitly using the tokens from the hash
-      const { error } = await supabase.auth.setSession({
+      if (!accessToken || !refreshToken) {
+        log("12. ❌ Missing access_token or refresh_token in hash");
+        setSessionValid(false);
+        setChecking(false);
+        return;
+      }
+
+      if (type !== "recovery") {
+        log("13. ❌ Wrong type in hash: '" + type + "' — expected 'recovery'");
+        setSessionValid(false);
+        setChecking(false);
+        return;
+      }
+
+      log("14. ✅ Hash looks valid — calling setSession...");
+
+      const { data: sessionData, error: setErr } = await supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
       });
 
-      if (error) {
-        console.error("setSession error:", error.message);
+      log("15. setSession result: " + JSON.stringify({
+        hasSession: !!sessionData.session,
+        userId: sessionData.session?.user?.id ?? null,
+        error: setErr?.message ?? null,
+      }));
+
+      if (setErr || !sessionData.session) {
+        log("16. ❌ setSession failed");
         setSessionValid(false);
         setChecking(false);
         return;
       }
 
-      // Step 5: Clean the hash from the URL so it's not reused
+      log("17. ✅ Session set — cleaning hash and showing form");
       window.history.replaceState(null, "", window.location.pathname);
-
       setSessionValid(true);
       setChecking(false);
     };
@@ -72,6 +121,7 @@ export default function ResetPasswordPage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    log("18. Form submitted — updating password...");
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
@@ -83,8 +133,8 @@ export default function ResetPasswordPage() {
     }
 
     setLoading(true);
-
     const { error } = await supabase.auth.updateUser({ password });
+    log("19. updateUser result: " + (error ? "❌ " + error.message : "✅ success"));
 
     if (error) {
       setError(error.message);
@@ -94,6 +144,7 @@ export default function ResetPasswordPage() {
 
     setSuccess(true);
     await supabase.auth.signOut();
+    log("20. ✅ Signed out — redirecting to login");
     setTimeout(() => { window.location.href = "/login"; }, 2000);
     setLoading(false);
   };
@@ -101,7 +152,13 @@ export default function ResetPasswordPage() {
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50">
-        <p className="text-zinc-500 text-sm">Verifying reset link...</p>
+        <div className="text-center">
+          <p className="text-zinc-500 text-sm mb-4">Verifying reset link...</p>
+          {/* Show live debug log on screen */}
+          <div className="text-left bg-black text-green-400 font-mono text-xs p-4 rounded-xl max-w-lg w-full max-h-60 overflow-y-auto">
+            {debugLog.map((l, i) => <div key={i}>{l}</div>)}
+          </div>
+        </div>
       </div>
     );
   }
@@ -109,7 +166,7 @@ export default function ResetPasswordPage() {
   if (!sessionValid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
-        <div className="text-center max-w-sm">
+        <div className="text-center max-w-lg w-full">
           <h1 className="text-xl font-bold text-zinc-900 mb-3">Link expired</h1>
           <p className="text-sm text-zinc-500 mb-6">
             This reset link has already been used or has expired.
@@ -117,6 +174,10 @@ export default function ResetPasswordPage() {
           <Link href="/forgot-password" className="text-emerald-500 hover:underline text-sm">
             Request a new reset link
           </Link>
+          {/* Show debug log even on error screen */}
+          <div className="mt-6 text-left bg-black text-green-400 font-mono text-xs p-4 rounded-xl max-h-60 overflow-y-auto">
+            {debugLog.map((l, i) => <div key={i}>{l}</div>)}
+          </div>
         </div>
       </div>
     );
@@ -147,7 +208,6 @@ export default function ResetPasswordPage() {
           />
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
-
           {success && (
             <p className="text-emerald-600 text-sm">
               Password updated. Redirecting to login...

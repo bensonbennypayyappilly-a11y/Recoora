@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import FooterLogo from "@/components/FooterLogo";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
@@ -177,6 +178,7 @@ export default function ResetPasswordPage() {
 
         </div>
       </div>
+      <FooterLogo />
     </main>
   );
 }

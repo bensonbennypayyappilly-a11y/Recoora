@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import AuthHeader from "../components/AuthHeader";
+import FooterLogo from "@/components/FooterLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -142,6 +143,7 @@ router.refresh();
       </div>
 
     </div>
+    <FooterLogo />
 
   </main>
   

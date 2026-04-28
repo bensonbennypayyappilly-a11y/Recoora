@@ -8,6 +8,7 @@ import AuthHeader from "../components/AuthHeader";
 import LegalModal from "../components/LegalModal";
 import TermsContent from "../components/legal/TermsContent";
 import PrivacyContent from "../components/legal/PrivacyContent";
+import FooterLogo from "@/components/FooterLogo";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -266,6 +267,7 @@ and
     }
   />
 )}
+<FooterLogo />
     </main>
   );
 }

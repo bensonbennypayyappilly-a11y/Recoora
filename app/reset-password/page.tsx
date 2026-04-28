@@ -5,76 +5,74 @@ import { supabase } from "@/lib/supabaseClient";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sessionReady, setSessionReady] = useState(false);
+  const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    console.log("🔍 Reset page loaded");
+    console.log("🚀 Reset page loaded");
 
-    const hash = window.location.hash;
-    console.log("🔗 Hash:", hash);
+    const params = new URLSearchParams(window.location.search);
 
-    if (!hash) {
-      setError("Invalid or expired link");
-      return;
-    }
-
-    const params = new URLSearchParams(hash.substring(1));
-
-    const access_token = params.get("access_token");
-    const refresh_token = params.get("refresh_token");
+    const token_hash = params.get("token_hash");
     const type = params.get("type");
 
-    console.log("📦 Parsed:", {
-      access_token,
-      refresh_token,
-      type,
-    });
+    console.log("📦 Params:", { token_hash, type });
 
-    if (!access_token || type !== "recovery") {
-      setError("Invalid recovery link");
+    if (!token_hash || type !== "recovery") {
+      setError("Invalid or expired reset link");
       return;
     }
 
-    supabase.auth
-      .setSession({
-        access_token,
-        refresh_token: refresh_token || "",
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.error("❌ Session failed:", error);
-          setError("Session creation failed");
-        } else {
-          console.log("✅ Session established");
-          setSessionReady(true);
-        }
+    const verify = async () => {
+      console.log("🔄 Verifying OTP...");
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash,
+        type: "recovery",
       });
+
+      console.log("📡 verifyOtp result:", {
+        hasSession: !!data.session,
+        error,
+      });
+
+      if (error) {
+        setError("Link expired or invalid");
+        return;
+      }
+
+      console.log("✅ Recovery session established");
+      setReady(true);
+    };
+
+    verify();
   }, []);
 
   const handleUpdate = async () => {
-    setLoading(true);
-    setError("");
+    console.log("🔄 Updating password...");
 
     const { error } = await supabase.auth.updateUser({
       password,
     });
 
+    console.log("📡 updateUser:", { error });
+
     if (error) {
       setError(error.message);
-    } else {
-      alert("Password updated successfully!");
+      return;
     }
 
-    setLoading(false);
+    alert("Password updated successfully!");
+
+    await supabase.auth.signOut();
+    window.location.href = "/login";
   };
 
   if (error) {
     return <p style={{ textAlign: "center" }}>{error}</p>;
   }
 
-  if (!sessionReady) {
+  if (!ready) {
     return <p style={{ textAlign: "center" }}>Verifying reset link...</p>;
   }
 
@@ -91,8 +89,8 @@ export default function ResetPasswordPage() {
 
       <br /><br />
 
-      <button onClick={handleUpdate} disabled={loading}>
-        {loading ? "Updating..." : "Update Password"}
+      <button onClick={handleUpdate}>
+        Update Password
       </button>
     </div>
   );

@@ -14,10 +14,34 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    // With implicit flow, Supabase puts #access_token in the URL hash.
+    // onAuthStateChange fires PASSWORD_RECOVERY automatically when it detects this.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "PASSWORD_RECOVERY" && session) {
+          setSessionValid(true);
+          setChecking(false);
+        }
+      }
+    );
+
+    // Also check if a session already exists (page refresh case)
     supabase.auth.getSession().then(({ data }) => {
-      setSessionValid(!!data.session);
-      setChecking(false);
+      if (data.session) {
+        setSessionValid(true);
+        setChecking(false);
+      }
     });
+
+    // Timeout — if no recovery event in 6s, the link is bad
+    const timeout = setTimeout(() => {
+      setChecking(false);
+    }, 6000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleUpdate = async (e: React.FormEvent) => {

@@ -2,38 +2,29 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
+  console.log("🔵 CALLBACK HIT");
+
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") ?? "/";
 
-  // No code = bad link
+  console.log("🔵 Code from URL:", code);
+
   if (!code) {
-    return NextResponse.redirect(
-      new URL("/login?error=missing_code", req.url)
-    );
+    console.log("❌ No code found → redirect login");
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  const redirectTo =
-    next === "reset"
-      ? new URL("/reset-password", req.url)
-      : new URL("/email-verified", req.url);
+  const response = NextResponse.redirect(new URL("/reset-password", req.url));
 
-  // Build response first — cookies are written onto THIS response object
-  const response = NextResponse.redirect(redirectTo);
-
-  // Must use req.cookies / response.cookies pattern — NOT next/headers cookies()
-  // next/headers cookies() is read-only in Route Handlers and cannot write Set-Cookie
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return req.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            req.cookies.set(name, value);
+        getAll: () => req.cookies.getAll(),
+        setAll: (cookies) => {
+          console.log("🍪 Setting cookies:", cookies.length);
+          cookies.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
         },
@@ -41,15 +32,20 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+  console.log("🔵 Exchange result:", {
+    hasSession: !!data.session,
+    userId: data.session?.user?.id,
+    error: error?.message,
+  });
 
   if (error) {
-    console.error("❌ Code exchange failed:", error.message);
-    return NextResponse.redirect(
-      new URL("/login?error=expired_link", req.url)
-    );
+    console.log("❌ Exchange failed → redirect login");
+    return NextResponse.redirect(new URL("/login?error=exchange", req.url));
   }
 
-  // Session cookie is now on `response` — browser receives it on redirect
+  console.log("✅ Session created → redirecting to reset-password");
+
   return response;
 }

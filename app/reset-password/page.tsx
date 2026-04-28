@@ -20,103 +20,35 @@ export default function ResetPasswordPage() {
   };
 
   useEffect(() => {
-    const init = async () => {
-      log("1. Page mounted");
-      log("2. Full URL: " + window.location.href);
-      log("3. Hash: " + (window.location.hash || "(empty)"));
-      log("4. Search: " + (window.location.search || "(empty)"));
+  const check = async () => {
+    console.log("🟡 RESET PAGE LOADED");
 
-      // Step A — check existing session
-      log("5. Checking existing session...");
-      const { data: existing, error: sessErr } = await supabase.auth.getSession();
-      log("6. getSession result: " + JSON.stringify({
-        hasSession: !!existing.session,
-        userId: existing.session?.user?.id ?? null,
-        error: sessErr?.message ?? null,
-      }));
+    console.log("🟡 Full URL:", window.location.href);
+    console.log("🟡 Cookies:", document.cookie);
 
-      if (existing.session) {
-        log("7. ✅ Session already exists — showing form");
-        setSessionValid(true);
-        setChecking(false);
-        return;
-      }
+    console.log("🟡 Checking session...");
 
-      // Step B — parse hash
-      const hash = window.location.hash;
-      log("8. Hash value: '" + hash + "'");
+    const { data, error } = await supabase.auth.getSession();
 
-      if (!hash || hash.length < 2) {
-        log("9. ❌ No hash found — link expired or already used");
-        setSessionValid(false);
-        setChecking(false);
-        return;
-      }
+    console.log("🟡 Session result:", {
+      hasSession: !!data.session,
+      userId: data.session?.user?.id,
+      error: error?.message,
+    });
 
-      const params = new URLSearchParams(hash.replace("#", ""));
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
-      const type = params.get("type");
-      const errorCode = params.get("error_code");
-      const errorDesc = params.get("error_description");
-
-      log("10. Parsed hash params: " + JSON.stringify({
-        hasAccessToken: !!accessToken,
-        hasRefreshToken: !!refreshToken,
-        type,
-        errorCode,
-        errorDesc,
-      }));
-
-      if (errorCode) {
-        log("11. ❌ Supabase returned error in hash: " + errorCode + " — " + errorDesc);
-        setSessionValid(false);
-        setChecking(false);
-        return;
-      }
-
-      if (!accessToken || !refreshToken) {
-        log("12. ❌ Missing access_token or refresh_token in hash");
-        setSessionValid(false);
-        setChecking(false);
-        return;
-      }
-
-      if (type !== "recovery") {
-        log("13. ❌ Wrong type in hash: '" + type + "' — expected 'recovery'");
-        setSessionValid(false);
-        setChecking(false);
-        return;
-      }
-
-      log("14. ✅ Hash looks valid — calling setSession...");
-
-      const { data: sessionData, error: setErr } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-
-      log("15. setSession result: " + JSON.stringify({
-        hasSession: !!sessionData.session,
-        userId: sessionData.session?.user?.id ?? null,
-        error: setErr?.message ?? null,
-      }));
-
-      if (setErr || !sessionData.session) {
-        log("16. ❌ setSession failed");
-        setSessionValid(false);
-        setChecking(false);
-        return;
-      }
-
-      log("17. ✅ Session set — cleaning hash and showing form");
-      window.history.replaceState(null, "", window.location.pathname);
+    if (data.session) {
+      console.log("✅ SESSION VALID → SHOW FORM");
       setSessionValid(true);
-      setChecking(false);
-    };
+    } else {
+      console.log("❌ NO SESSION → AUTH FAILED");
+      setSessionValid(false);
+    }
 
-    init();
-  }, []);
+    setChecking(false);
+  };
+
+  check();
+}, []);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();

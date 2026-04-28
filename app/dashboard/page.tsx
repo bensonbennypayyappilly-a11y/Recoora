@@ -55,8 +55,13 @@ const handleLogout = async () => {
   
 
   const isPro = plan === "Growth";
-  const isTrialExpired =
-    plan === "trial" && trialEndsAt && new Date(trialEndsAt) < new Date();
+  const isBillingInactive =
+  subscription_status !== "active" &&
+  !(
+    plan === "trial" &&
+    trialEndsAt &&
+    new Date(trialEndsAt) > new Date()
+  );
   const lockedRanges = ["15", "30", "60"];
   const isLocked = (r: string) => lockedRanges.includes(r) && !isPro;
 const fetchDashboardData = async () => {
@@ -65,6 +70,13 @@ const fetchDashboardData = async () => {
           const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
   window.location.href = "/login";
+  return;
+}
+
+if (isBillingInactive) {
+  setAlerts([]);
+  setPeriodStats({ revenue: 0, failed: 0, lost: 0 });
+  setUnattended(0);
   return;
 }
 
@@ -270,8 +282,8 @@ setUnattended(unattendedAmount);
 
   /* ── Realtime ── */
   useEffect(() => {
-  if (!stripeAccountId || !userId) return;
-
+  if (!stripeAccountId || !userId || isBillingInactive) return;
+  
     console.log("📡 Subscribing to realtime for account:", stripeAccountId);
 
     const channel = supabase
@@ -558,7 +570,7 @@ if (
 </div>
 
       {/* ── Trial expired overlay ── */}
-      {isTrialExpired && (
+      {isBillingInactive && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="max-w-sm w-full rounded-2xl border border-white/8 bg-zinc-900 p-8 text-center shadow-2xl mx-4">
             <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
@@ -580,13 +592,13 @@ if (
         </div>
       )}
 
-      <div className={isTrialExpired ? "pointer-events-none blur-sm" : ""}>
+      <div className={isBillingInactive ? "pointer-events-none blur-sm" : ""}>
 
         {/* ── Banners ── */}
-        {!stripeConnected && !isTrialExpired && (
+        {!stripeConnected && !isBillingInactive && (
           <StripeConnectBanner onConnect={handleConnect} />
         )}
-        {!slackConnected && !isTrialExpired && (
+        {!slackConnected && !isBillingInactive && (
           <SlackConnectBanner onConnect={() => console.log("Slack connect")} />
         )}
 

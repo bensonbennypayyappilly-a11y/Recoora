@@ -240,10 +240,19 @@ if (!stripeAccountId) {
   /* ================= USER LOOKUP ================= */
  
   const { data: user, error: userError } = await supabaseServer
-    .from("users")
-    .select("id, slack_connected, slack_access_token, slack_channel_id")
-    .eq("stripe_account_id", stripeAccountId)
-    .maybeSingle();
+  .from("users")
+  .select(`
+    id,
+    plan,
+    subscription_status,
+    trial_ends_at,
+    current_period_end,
+    slack_connected,
+    slack_access_token,
+    slack_channel_id
+  `)
+  .eq("stripe_account_id", stripeAccountId)
+  .maybeSingle();
 
   if (userError) console.error("❌ User lookup error:", userError);
   console.log(
@@ -264,6 +273,36 @@ if (!stripeAccountId) {
 if (!user) {
   console.error("❌ CRITICAL: No user found for stripe_account_id:", stripeAccountId);
   return NextResponse.json({ error: "User not found" }, { status: 400 });
+}
+
+// 🔒 BILLING ENFORCEMENT
+
+const now = new Date();
+
+const isTrialValid =
+  user.plan === "trial" &&
+  user.trial_ends_at &&
+  new Date(user.trial_ends_at) > now;
+
+const isActive = user.subscription_status === "active";
+
+const isCanceling =
+  user.subscription_status === "canceling" &&
+  user.current_period_end &&
+  new Date(user.current_period_end) > now;
+
+const billingActive = isActive || isTrialValid || isCanceling;
+
+if (!billingActive) {
+  console.log("⛔ BLOCKED: inactive user", {
+    plan: user.plan,
+    status: user.subscription_status,
+  });
+
+  return NextResponse.json({
+    ignored: true,
+    reason: "billing_inactive",
+  });
 }
 
 
@@ -578,6 +617,11 @@ ${productLine}Amount: ${amountFormatted}
     "📤 slackPayload decision:",
     slackPayload ? slackPayload.text : "NULL — no payload built for " + eventType
   );
+
+  if (!billingActive) {
+  console.log("⛔ Slack blocked (inactive user)");
+  return NextResponse.json({ skipped: true });
+}
 
   /* ================= SEND TO SLACK ================= */
   if (slackPayload) {

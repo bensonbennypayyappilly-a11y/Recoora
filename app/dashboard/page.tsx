@@ -596,7 +596,7 @@ if (
             <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
               <span className="text-amber-400 text-lg font-bold">!</span>
             </div>
-            <h2 className="text-lg font-semibold text-white">plan={plan} expired</h2>
+            <h2 className="text-lg font-semibold text-white"> {plan} expired</h2>
             <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
               Upgrade to continue monitoring your Stripe revenue in real-time.
             </p>

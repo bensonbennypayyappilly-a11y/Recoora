@@ -76,22 +76,45 @@ export default function ResetPasswordPage() {
     return <p style={{ textAlign: "center" }}>Verifying reset link...</p>;
   }
 
-  return (
-    <div style={{ textAlign: "center" }}>
-      <h2>Reset Password</h2>
+ return (
+  <main className="min-h-screen bg-gradient-to-b from-white to-zinc-50 flex items-center justify-center px-4">
+    <div className="w-full max-w-md bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-zinc-100 p-8">
 
-      <input
-        type="password"
-        placeholder="New password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+      <h1 className="text-2xl font-bold text-zinc-900 text-center mb-6">
+        Reset Password
+      </h1>
 
-      <br /><br />
+      {error && (
+        <p className="text-red-500 text-sm text-center mb-4">
+          {error}
+        </p>
+      )}
 
-      <button onClick={handleUpdate}>
-        Update Password
-      </button>
+      {!ready ? (
+        <p className="text-center text-zinc-500 text-sm">
+          Verifying reset link...
+        </p>
+      ) : (
+        <div className="space-y-4">
+
+          <input
+            type="password"
+            placeholder="Enter new password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-sm outline-none focus:ring-2 focus:ring-emerald-400"
+          />
+
+          <button
+            onClick={handleUpdate}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold py-3 rounded-xl transition"
+          >
+            Update Password
+          </button>
+
+        </div>
+      )}
     </div>
-  );
+  </main>
+);
 }

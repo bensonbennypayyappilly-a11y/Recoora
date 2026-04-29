@@ -618,11 +618,7 @@ ${productLine}Amount: ${amountFormatted}
     slackPayload ? slackPayload.text : "NULL — no payload built for " + eventType
   );
 
-  if (!billingActive) {
-  console.log("⛔ Slack blocked (inactive user)");
-  return NextResponse.json({ skipped: true });
-}
-
+  
   /* ================= SEND TO SLACK ================= */
   if (slackPayload) {
     try {

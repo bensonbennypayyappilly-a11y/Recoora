@@ -55,15 +55,55 @@ const handleLogout = async () => {
   
 
   const isPro = plan === "Growth";
-  const isBillingInactive =
-  subscription_status !== null && (
-    subscription_status !== "active" &&
-    !(
-      plan === "trial" &&
-      trialEndsAt &&
-      new Date(trialEndsAt) > new Date()
-    )
-  );
+const now = new Date();
+
+const isTrialValid =
+  plan === "trial" &&
+  trialEndsAt &&
+  new Date(trialEndsAt) > now;
+
+const isActive = subscription_status === "active";
+
+// ⚠️ FIX: remove userData dependency here (NOT AVAILABLE)
+const isCanceling = subscription_status === "canceling";
+
+// FINAL ACCESS CONTROL
+const isBillingInactive = !(isActive || isTrialValid || isCanceling);
+
+
+// 🎯 BLOCK UI CONTENT
+let blockTitle = "";
+let blockSubtext = "";
+let blockCTA = "";
+
+const isTrialExpired =
+  plan === "trial" &&
+  trialEndsAt &&
+  new Date(trialEndsAt) <= now;
+
+const isCanceled = subscription_status === "canceled";
+const isUnpaid = subscription_status === "unpaid";
+
+if (isTrialExpired) {
+  blockTitle = "Trial expired";
+  blockSubtext = "Upgrade to continue monitoring your Stripe revenue.";
+  blockCTA = "Start Starter Plan";
+} else if (isCanceled) {
+  blockTitle = "Plan expired";
+  blockSubtext = "Your subscription has ended. Restart to continue.";
+  blockCTA = "Reactivate Subscription";
+} else if (isUnpaid) {
+  blockTitle = "Payment required";
+  blockSubtext = "Your payment failed. Update billing to continue.";
+  blockCTA = "Fix Payment";
+} else {
+  blockTitle = "Access restricted";
+  blockSubtext = "Upgrade to continue.";
+  blockCTA = "Upgrade";
+}
+
+
+
   const lockedRanges = ["15", "30", "60"];
   const isLocked = (r: string) => lockedRanges.includes(r) && !isPro;
 const fetchDashboardData = async () => {
@@ -74,6 +114,8 @@ const fetchDashboardData = async () => {
   window.location.href = "/login";
   return;
 }
+
+
 
 
 setUserId(sessionData.session.user.id);
@@ -596,14 +638,18 @@ if (
             <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
               <span className="text-amber-400 text-lg font-bold">!</span>
             </div>
-            <h2 className="text-lg font-semibold text-white"> {plan} expired</h2>
-            <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-              Upgrade to continue monitoring your Stripe revenue in real-time.
-            </p>
+            <h2 className="text-lg font-semibold text-white">
+  {blockTitle}
+</h2>
+
+<p className="mt-2 text-sm text-zinc-400 leading-relaxed">
+  {blockSubtext}
+</p>
             <div className="mt-6">
               <UpgradeButton
   plan={plan}
-  status={subscription_status}
+  status={subscription_status ?? "inactive"}
+  label={blockCTA}
   subscriptionId={null}
   cancelAtPeriodEnd={false}
 />

@@ -11,21 +11,24 @@ type Plan   = "trial" | "starter" | "Growth" | null;
 type Status = string; // "active" | "canceled" | "canceling" | "past_due" | "incomplete" | "unpaid" | "inactive"
 
 interface UpgradeButtonProps {
-  plan:              Plan;
-  status:            Status;
-  subscriptionId:    string | null;
+  plan: Plan;
+  status: Status;
+  label?: string; // ✅ ADD THIS
+  subscriptionId: string | null;
   cancelAtPeriodEnd: boolean;
 }
-
 
 
 
 export default function UpgradeButton({
   plan,
   status,
+  label,
   subscriptionId,
   cancelAtPeriodEnd,
 }: UpgradeButtonProps) {
+
+
   const [loading, setLoading] = useState(false);
 
 const [localStatus, setLocalStatus] = useState<Status | null>(null);
@@ -142,7 +145,7 @@ if (effectiveStatus === "canceling") {
       disabled={loading}
       className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {loading ? "Redirecting..." : "Start Starter Plan"}
+      {loading ? "Redirecting..." : (label || "Start Starter Plan")}
     </button>
   );
 }

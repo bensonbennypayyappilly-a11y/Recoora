@@ -288,8 +288,10 @@ const isActive = user.subscription_status === "active";
 
 const isCanceling =
   user.subscription_status === "canceling" &&
-  user.current_period_end &&
-  new Date(user.current_period_end) > now;
+  (
+    !user.current_period_end ||
+    new Date(user.current_period_end) > now
+  );
 
 const billingActive = isActive || isTrialValid || isCanceling;
 

@@ -156,8 +156,10 @@ const isActive = userData?.subscription_status === "active";
 
 const isCanceling =
   userData?.subscription_status === "canceling" &&
-  userData?.current_period_end &&
-  new Date(userData.current_period_end) > now;
+  (
+    !userData?.current_period_end || // ✅ allow if missing
+    new Date(userData.current_period_end) > now
+  );
 
 const billingActive = isActive || isTrialValid || isCanceling;
 

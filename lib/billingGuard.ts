@@ -23,7 +23,13 @@ export async function checkBilling(userId: string) {
     user.current_period_end &&
     new Date(user.current_period_end) > now;
 
-  const allowed = isActive || isTrialValid || isCanceling;
+  const isUnpaid = user.subscription_status === "unpaid";
+
+const allowed =
+  isActive ||
+  isTrialValid ||
+  isCanceling ||
+  isUnpaid; // ✅ allow unpaid users
 
   return { allowed, user };
 }

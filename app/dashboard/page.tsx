@@ -43,6 +43,7 @@ export default function Dashboard() {
   const processedInsertedInvoices = useRef<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
   const [subscription_status, setSubscriptionStatus] = useState<string | null>(null);
+  const [showUnpaidModal, setShowUnpaidModal] = useState(false);
 
 
   const router = useRouter();
@@ -68,7 +69,14 @@ const isActive = subscription_status === "active";
 const isCanceling = subscription_status === "canceling";
 
 // FINAL ACCESS CONTROL
-const isBillingInactive = !(isActive || isTrialValid || isCanceling);
+const isUnpaid = subscription_status === "unpaid";
+
+const isBillingInactive = !(
+  isActive ||
+  isTrialValid ||
+  isCanceling ||
+  isUnpaid // ✅ allow unpaid
+);
 
 
 // 🎯 BLOCK UI CONTENT
@@ -82,7 +90,7 @@ const isTrialExpired =
   new Date(trialEndsAt) <= now;
 
 const isCanceled = subscription_status === "canceled";
-const isUnpaid = subscription_status === "unpaid";
+
 
 if (isTrialExpired) {
   blockTitle = "Trial expired";
@@ -92,10 +100,6 @@ if (isTrialExpired) {
   blockTitle = "Plan expired";
   blockSubtext = "Your subscription has ended. Restart to continue.";
   blockCTA = "Reactivate Subscription";
-} else if (isUnpaid) {
-  blockTitle = "Payment required";
-  blockSubtext = "Your payment failed. Update billing to continue.";
-  blockCTA = "Fix Payment";
 } else {
   blockTitle = "Access restricted";
   blockSubtext = "Upgrade to continue.";
@@ -161,7 +165,13 @@ const isCanceling =
     new Date(userData.current_period_end) > now
   );
 
-const billingActive = isActive || isTrialValid || isCanceling;
+const isUnpaid = userData?.subscription_status === "unpaid";
+
+const billingActive =
+  isActive ||
+  isTrialValid ||
+  isCanceling ||
+  isUnpaid; // ✅ allow unpaid
 
 if (!billingActive) {
   setAlerts([]);
@@ -343,6 +353,12 @@ setUnattended(unattendedAmount);
   }
 
   }, []);
+
+  useEffect(() => {
+  if (subscription_status === "unpaid") {
+    setShowUnpaidModal(true);
+  }
+}, [subscription_status]);
 
   /* ── Realtime ── */
   useEffect(() => {
@@ -885,11 +901,48 @@ if (
                     </p>
                   )}
                 </div>
+
+{showUnpaidModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-700 w-full max-w-md">
+      
+      <h2 className="text-lg font-semibold text-white">
+        Payment Required
+      </h2>
+
+      <p className="mt-2 text-sm text-zinc-400">
+        Your last payment failed. Please complete payment to avoid interruption.
+      </p>
+
+      <div className="mt-6 flex justify-between gap-3">
+        
+        {/* Continue button */}
+        <button
+          onClick={() => setShowUnpaidModal(false)}
+          className="px-4 py-2 text-sm bg-zinc-800 rounded-md"
+        >
+          Continue
+        </button>
+
+        {/* Payment CTA */}
+        <UpgradeButton
+          plan={plan}
+          status={"unpaid"}
+          label="Fix Payment"
+          subscriptionId={null}
+          cancelAtPeriodEnd={false}
+        />
+      </div>
+    </div>
+  </div>
+)}
+
               </div>
             </>
           )}
         </div>
       </div>
     </div>
+    
   );
 }

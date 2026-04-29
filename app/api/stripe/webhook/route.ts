@@ -293,7 +293,13 @@ const isCanceling =
     new Date(user.current_period_end) > now
   );
 
-const billingActive = isActive || isTrialValid || isCanceling;
+const isUnpaid = user.subscription_status === "unpaid";
+
+const billingActive =
+  isActive ||
+  isTrialValid ||
+  isCanceling ||
+  isUnpaid; // ✅ allow unpaid users
 
 if (!billingActive) {
   console.log("⛔ BLOCKED: inactive user", {

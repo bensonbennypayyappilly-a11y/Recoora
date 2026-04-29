@@ -85,12 +85,26 @@ const EVENT_CONFIG: Record<
     badgeLabel: "NEW",
     rowBorder: "border-l-sky-400/60",
   },
+  "customer.subscription.updated": {
+  label: "Cancel Scheduled",
+  dotColor: "bg-yellow-400",
+  textAccent: "text-yellow-400",
+  badgeBg: "bg-yellow-400/10 border-yellow-400/20",
+  badgeText: "text-yellow-400",
+  badgeLabel: "RISK",
+  rowBorder: "border-l-yellow-400/60",
+},
 };
 
 // ── Smart email template generator ───────────────────────────────────────────
 function generateEmail(alert: Alert): { subject: string; body: string } {
-    const amount = `$${((alert.amount || 0) / 100).toFixed(2)}`;
+    const amount = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+}).format((alert.amount || 0) / 100);
   const plan = alert.plan_name ? ` for ${alert.plan_name}` : "";
+
+
 
   if (alert.event_type === "invoice.payment_failed") {
     const reason = alert.failure_reason
@@ -105,60 +119,86 @@ function generateEmail(alert: Alert): { subject: string; body: string } {
         : "This is usually a quick fix.";
 
     return {
-  subject: `⚠️ Payment failed — action needed to keep your access`,
+  subject: `Quick fix needed to keep things running smoothly`,
   body: `Hi,
 
-Looks like your recent payment of ${amount}${plan} didn’t go through.
+Just a quick heads up — your recent payment of ${amount}${plan} didn’t go through.
 
-No worries — this happens more often than you’d think.
+This usually happens due to expired cards or bank blocks, so nothing to worry about.
 
-${
-  attempt >= 3
-    ? "This was the final retry, so there’s a chance your access might get interrupted."
-    : attempt === 2
-    ? "We’ll retry again shortly, but it might fail unless it’s updated."
-    : ""
+${attempt >= 3 
+  ? "We’ve already tried a few times, and this was the final attempt — there’s a chance your access might get interrupted soon."
+  : attempt === 2
+  ? "We’ll retry again shortly, but it may fail unless the details are updated."
+  : ""
 }
 
-You can quickly fix it here:
-[..payment link...]
+You can fix it in under a minute here:
+👉 [Update payment details]
 
-If something feels off or you need help, just reply — I’ll take care of it personally.
+If something’s not working or you’d prefer help, just reply to this email — I’ll personally take care of it.
 
-— [Your Product Name]`
+— [Your Name]`
 };
   }
+
+
 
   if (alert.event_type === "customer.subscription.deleted") {
     return {
-  subject: `Can we fix this before you leave?`,
+  subject: `Can we make this right?`,
   body: `Hi,
 
-I saw that you cancelled your subscription${plan} — just wanted to check in.
+I saw that you cancelled your subscription${plan}, and I just wanted to reach out once.
 
-Was something not working the way you expected?
+If something didn’t meet your expectations — whether it’s pricing, features, or support — I’d genuinely like to understand.
 
-If it was a payment issue, I can help fix it quickly.  
-If it was pricing, we can figure something out.  
-If it was the product itself, I’d really value your feedback.
+And if there’s anything we can fix or improve for you, I’m happy to help.
 
-No pressure at all — just reply if you’re open to it.
+No pressure — just reply if you feel like sharing.
 
-— [Your Product Name]`
+— [Your Name]`
 };
   }
 
+
+
+  if (alert.event_type === "customer.subscription.updated") {
   return {
-  subject: `Quick follow-up`,
+    subject: `Before you go — quick question`,
+    body: `Hi,
+
+I noticed you’ve scheduled your subscription${plan} to cancel.
+
+Before you leave, I just wanted to ask — was something not working the way you expected?
+
+Even small things help us improve, and if it’s something we can fix quickly, I’d love to help.
+
+No pressure at all — just reply if you’re open to sharing.
+
+Either way, thanks for giving us a try.
+
+— [Your Name]`,
+  };
+}
+
+  return {
+  subject: `Quick check-in`,
   body: `Hi,
+
 
 Just checking in regarding your account.
 
-If you need any help, feel free to reply — happy to assist.
+If you need any help or have any questions, feel free to reply — happy to help.
 
 — Team`
 };
+
+
+
 }
+
+
 
 // ── Confirmation Modal ────────────────────────────────────────────────────────
 function ConfirmModal({

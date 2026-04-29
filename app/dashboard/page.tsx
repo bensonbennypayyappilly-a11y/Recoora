@@ -206,6 +206,7 @@ if (!billingActive) {
           "invoice.payment_failed",
           "invoice.payment_succeeded",
           "customer.subscription.deleted",
+          "customer.subscription.updated",
           "checkout.session.completed",
         ])
         .gte("created_at", sinceDate.toISOString())
@@ -231,7 +232,10 @@ const { data: failedEvents } = await supabase
     "event_type, amount, invoice_id, stripe_event_id, action_status, deleted_at"
   )
   .eq("user_id", sessionData.session.user.id)
-  .eq("event_type", "invoice.payment_failed")
+  .in("event_type", [
+  "invoice.payment_failed",
+  "customer.subscription.updated",
+])
   .is("deleted_at", null)
   .gte(
     "created_at",
@@ -275,11 +279,17 @@ allEvents?.forEach((e) => {
 // ✅ UNATTENDED ONLY (NEW LOGIC)
   failedEvents?.forEach((e) => {
 const key = e.invoice_id ?? e.stripe_event_id;
-  if (
-    e.action_status !== "contacted_slack" &&
-    e.action_status !== "taken" &&
-    e.deleted_at === null
-  ) {
+ const isRelevantEvent =
+  e.event_type === "invoice.payment_failed" ||
+  e.event_type === "customer.subscription.updated";
+
+if (
+  isRelevantEvent &&
+  e.action_status !== "contacted_slack" &&
+  e.action_status !== "taken" &&
+  e.deleted_at === null
+)
+{
     if (!unattendedInvoices.has(key)) {
       unattendedInvoices.add(key);
       unattendedAmount += e.amount || 0;
@@ -383,7 +393,8 @@ const key = inserted.invoice_id ?? inserted.stripe_event_id;
 
 
 if (
-  inserted.event_type === "invoice.payment_failed" &&
+  (inserted.event_type === "invoice.payment_failed" ||
+   inserted.event_type === "customer.subscription.updated") &&
   inserted.action_status !== "contacted_slack" &&
   inserted.action_status !== "taken" &&
   inserted.deleted_at === null
@@ -470,11 +481,15 @@ if (
 
           // ✅ FIX: update unattended when resolved
 if (
-  updated.event_type === "invoice.payment_failed" &&
-  (updated.action_status === "contacted_slack" ||
+  (updated.event_type === "invoice.payment_failed" ||
+   updated.event_type === "customer.subscription.updated") &&
+  (
+    updated.action_status === "contacted_slack" ||
     updated.action_status === "taken" ||
-    updated.deleted_at !== null)
-) {
+    updated.deleted_at !== null
+  )
+)
+ {
   const key = updated.invoice_id ?? updated.stripe_event_id;
 
   if (!key) return;
@@ -598,6 +613,11 @@ if (
         a.event_type !== "customer.subscription.deleted"
       )
         return false;
+        if (
+  alertFilter === "churn_risk" &&
+  a.event_type !== "customer.subscription.updated"
+)
+  return false;
       if (
         alertFilter === "checkout" &&
         a.event_type !== "checkout.session.completed"
@@ -863,6 +883,7 @@ if (
                       <option value="payment_failed">Failed</option>
                       <option value="payment_succeeded">Paid</option>
                       <option value="subscription_deleted">Churned</option>
+                      <option value="churn_risk">Churn Risk</option>
                       <option value="checkout">New</option>
                     </select>
 

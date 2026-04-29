@@ -39,11 +39,12 @@ if (!stripeAccountId) {
   console.log("📩 EVENT ID:", event.id);
 
   const allowedEvents = [
-    "invoice.payment_failed",
-    "invoice.payment_succeeded",
-    "customer.subscription.deleted",
-    "checkout.session.completed",
-  ];
+  "invoice.payment_failed",
+  "invoice.payment_succeeded",
+  "customer.subscription.deleted",
+  "customer.subscription.updated", // ✅ ADD THIS
+  "checkout.session.completed",
+];
 
   if (!allowedEvents.includes(eventType)) {
     console.log("⏭ Ignored event:", eventType);
@@ -51,7 +52,10 @@ if (!stripeAccountId) {
   }
 
   const data = event.data.object as any;
+
   let invoiceId: string | null = null;
+
+  
 
   if (eventType.startsWith("invoice.")) {
     invoiceId = data.id;
@@ -214,7 +218,19 @@ if (!stripeAccountId) {
   if (eventType === "invoice.payment_succeeded") {
     alertLevel = "success";
     alertType = "revenue";
-  } else if (eventType === "customer.subscription.deleted") {
+  
+  }
+  else if (eventType === "customer.subscription.updated") {
+  if (data.cancel_at_period_end) {
+    alertLevel = "warning";
+    alertType = "churn_risk";
+  } else {
+    // ❌ skip resumed events
+    return NextResponse.json({ ignored: true, reason: "subscription_resumed" });
+  }
+}
+
+  else if (eventType === "customer.subscription.deleted") {
     alertLevel = "critical";
     alertType = "churn";
   } else if (eventType === "invoice.payment_failed") {
@@ -253,6 +269,23 @@ if (!stripeAccountId) {
   `)
   .eq("stripe_account_id", stripeAccountId)
   .maybeSingle();
+
+  // AFTER USER LOOKUP
+
+if (eventType === "customer.subscription.updated") {
+  const cancelAtPeriodEnd = data?.cancel_at_period_end === true;
+
+ 
+  if (cancelAtPeriodEnd) {
+    console.log("⚠️ Subscription scheduled to cancel (churn risk)");
+
+    
+
+  } else {
+    console.log("🔄 Subscription resumed");
+  }
+
+  }
 
   if (userError) console.error("❌ User lookup error:", userError);
   console.log(
@@ -606,7 +639,22 @@ ${productLine}Revenue Lost: ${amountFormatted}
         `Customer: ${customer}\n${productLine}Amount: ${amountFormatted}\n\n📌 First payment via checkout`
       ),
     };
-  } else if (eventType === "invoice.payment_succeeded") {
+  } 
+  
+  else if (eventType === "customer.subscription.updated") {
+  slackPayload = {
+    text: "⚠️ Cancellation Scheduled",
+    blocks: buildActionBlocks(
+      "⚠️ *Customer Might Churn*",
+      `Customer: ${customer}
+${productLine}Subscription scheduled to cancel at period end.
+
+👉 This is your best chance to retain them.`
+    ),
+  };
+}
+
+  else if (eventType === "invoice.payment_succeeded") {
     slackPayload = {
       text: "💰 Payment Successful",
       blocks: buildCleanBlocks(

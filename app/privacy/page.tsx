@@ -38,7 +38,7 @@ export default function PrivacyPage() {
               Stripe & Payment Data
             </h2>
             <p>
-              Payments are processed securely by Stripe. We do not store or handle credit card data.
+              Payments are processed securely via our payment provider. We do not store or handle credit card data.
               We only access limited metadata necessary for monitoring events.
             </p>
           </section>

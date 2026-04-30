@@ -45,7 +45,7 @@ export default function TermsPage() {
               Billing
             </h2>
             <p>
-              Subscriptions are billed via Stripe. All payments are non-refundable unless required by law.
+              Subscriptions are billed via our payment provider. We do not store or process payment information directly.
             </p>
           </section>
 

@@ -35,25 +35,33 @@ const [localStatus, setLocalStatus] = useState<Status | null>(null);
 const effectiveStatus = localStatus ?? status;
 
   // ── Redirect to Stripe Checkout ──────────────────────────
-  const goToCheckout = async () => {
-    if (loading) return; // prevent duplicate clicks
-    setLoading(true);
-    try {
-      const res  = await fetch("/api/payments/checkout", { method: "POST" });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert("Failed to create checkout session. Please try again.");
-      }
-    } catch (err) {
-      console.error("Checkout error:", err);
-      alert("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+const goToCheckout = async () => {
+  if (loading) return;
+  setLoading(true);
 
+  try {
+    const res = await fetch("/api/payments/checkout", { method: "POST" });
+    const data = await res.json();
+
+    // 🚀 Paddle Checkout
+    window.Paddle.Checkout.open({
+      items: [
+        {
+          priceId: data.priceId,
+          quantity: 1,
+        },
+      ],
+      customer: data.customer,
+      customData: data.customData,
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Checkout failed");
+  } finally {
+    setLoading(false);
+  }
+};
   // ────────────────────────────────────────────────────────
   // CASE 1 — Active Starter subscription
   // Show "Upgrade to Growth (Coming Soon)" — no redirect to Stripe

@@ -1,45 +1,63 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
-// import { supabase } from "@/lib/supabase"; // adjust path
+
+export const runtime = "nodejs"; // ✅ CRITICAL
 
 export async function POST(req: Request) {
   try {
     const secret = process.env.PADDLE_WEBHOOK_SECRET!;
     const signatureHeader = req.headers.get("paddle-signature");
 
-if (!signatureHeader) {
-  return new NextResponse("Missing signature", { status: 400 });
-}
+    console.log("🔐 HEADER:", signatureHeader);
 
-const rawBody = await req.text();
+    if (!signatureHeader) {
+      return new NextResponse("Missing signature", { status: 400 });
+    }
 
-// 🔥 Parse signature
-const parts = signatureHeader.split(";");
-let ts = "";
-let hash = "";
+    const rawBody = await req.text();
 
-for (const part of parts) {
-  const [key, value] = part.split("=");
-  if (key === "ts") ts = value;
-  if (key === "h1") hash = value;
-}
+    console.log("📦 RAW BODY:", rawBody);
 
-if (!ts || !hash) {
-  return new NextResponse("Invalid signature format", { status: 400 });
-}
+    // 🔥 Parse signature
+    const parts = Object.fromEntries(
+      signatureHeader.split(";").map((p) => p.split("="))
+    );
 
-// 🔥 Create signed payload
-const signedPayload = `${ts}:${rawBody}`;
+    const ts = parts.ts;
+    const receivedHash = parts.h1;
 
-const expected = crypto
-  .createHmac("sha256", process.env.PADDLE_WEBHOOK_SECRET!)
-  .update(signedPayload)
-  .digest("hex");
+    console.log("🕒 Timestamp:", ts);
+    console.log("📥 Received Hash:", receivedHash);
 
-// 🔥 Compare
-if (expected !== hash) {
-  return new NextResponse("Invalid signature", { status: 401 });
-}
+    if (!ts || !receivedHash) {
+      return new NextResponse("Invalid signature format", { status: 400 });
+    }
+
+    // 🔥 Create signed payload
+    const signedPayload = `${ts}:${rawBody}`;
+
+    const expectedHash = crypto
+      .createHmac("sha256", secret)
+      .update(signedPayload)
+      .digest("hex");
+
+    console.log("📤 Expected Hash:", expectedHash);
+
+    // 🔥 SAFE compare
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(expectedHash, "hex"),
+      Buffer.from(receivedHash, "hex")
+    );
+
+    console.log("✅ Signature valid:", isValid);
+
+    if (!isValid) {
+      return new NextResponse("Invalid signature", { status: 401 });
+    }
+
+    // =========================
+    // 🎉 VERIFIED — PROCESS EVENT
+    // =========================
 
     const event = JSON.parse(rawBody);
     const type = event.event_type;
@@ -49,81 +67,29 @@ if (expected !== hash) {
     const data = event.data;
     const userId = data?.custom_data?.user_id;
 
-    // ⚠️ Always guard
+    console.log("👤 User ID:", userId);
+
     if (!userId) {
-      console.warn("No user_id in webhook");
+      console.warn("⚠️ No user_id in webhook");
       return NextResponse.json({ received: true });
     }
 
-    // =========================
     // 💰 TRANSACTIONS
-    // =========================
-
     if (type === "transaction.completed") {
-      console.log("✅ Payment success");
-
-      // await supabase.from("users").update({
-      //   plan: "starter",
-      //   subscription_status: "active",
-      // }).eq("id", userId);
+      console.log("✅ Payment success for:", userId);
     }
 
     if (type === "transaction.payment_failed") {
-      console.log("❌ Payment failed");
-
-      // 🔥 YOUR CORE FEATURE
-      // await supabase.from("alerts").insert({
-      //   user_id: userId,
-      //   type: "payment_failed",
-      // });
-
-      // 👉 Trigger Slack / Email here
+      console.log("❌ Payment failed for:", userId);
     }
 
-    // =========================
     // 📦 SUBSCRIPTIONS
-    // =========================
-
     if (type === "subscription.created") {
       console.log("🆕 Subscription created");
-
-      // await supabase.from("users").update({
-      //   subscription_status: "active",
-      // }).eq("id", userId);
-    }
-
-    if (type === "subscription.updated") {
-      console.log("🔄 Subscription updated");
-
-      // plan upgrade/downgrade
     }
 
     if (type === "subscription.canceled") {
       console.log("🚨 Subscription canceled");
-
-      // await supabase.from("users").update({
-      //   subscription_status: "canceled",
-      // }).eq("id", userId);
-
-      // 🔥 Trigger churn alert
-    }
-
-    if (type === "subscription.past_due") {
-      console.log("⚠️ Past due");
-
-      // 🔥 Early churn signal
-    }
-
-    if (type === "subscription.paused") {
-      console.log("⏸ Subscription paused");
-    }
-
-    if (type === "subscription.resumed") {
-      console.log("▶️ Subscription resumed");
-
-      // await supabase.from("users").update({
-      //   subscription_status: "active",
-      // }).eq("id", userId);
     }
 
     return NextResponse.json({ received: true });

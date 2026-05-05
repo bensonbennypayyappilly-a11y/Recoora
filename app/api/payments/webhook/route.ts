@@ -5,22 +5,41 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const secret = process.env.PADDLE_WEBHOOK_SECRET!;
-    const signature = req.headers.get("paddle-signature");
+    const signatureHeader = req.headers.get("paddle-signature");
 
-    if (!signature) {
-      return new NextResponse("Missing signature", { status: 400 });
-    }
+if (!signatureHeader) {
+  return new NextResponse("Missing signature", { status: 400 });
+}
 
-    const rawBody = await req.text();
+const rawBody = await req.text();
 
-    // ✅ Verify signature
-    const hmac = crypto.createHmac("sha256", secret);
-    hmac.update(rawBody);
-    const digest = hmac.digest("hex");
+// 🔥 Parse signature
+const parts = signatureHeader.split(";");
+let ts = "";
+let hash = "";
 
-    if (digest !== signature) {
-      return new NextResponse("Invalid signature", { status: 401 });
-    }
+for (const part of parts) {
+  const [key, value] = part.split("=");
+  if (key === "ts") ts = value;
+  if (key === "h1") hash = value;
+}
+
+if (!ts || !hash) {
+  return new NextResponse("Invalid signature format", { status: 400 });
+}
+
+// 🔥 Create signed payload
+const signedPayload = `${ts}:${rawBody}`;
+
+const expected = crypto
+  .createHmac("sha256", process.env.PADDLE_WEBHOOK_SECRET!)
+  .update(signedPayload)
+  .digest("hex");
+
+// 🔥 Compare
+if (expected !== hash) {
+  return new NextResponse("Invalid signature", { status: 401 });
+}
 
     const event = JSON.parse(rawBody);
     const type = event.event_type;

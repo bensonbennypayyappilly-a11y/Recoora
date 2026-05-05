@@ -14,11 +14,18 @@ export default function PaddleProvider() {
     script.async = true;
 
     script.onload = () => {
-      if ((window as any).Paddle) {
-        (window as any).Paddle.Initialize({
+      const Paddle = (window as any).Paddle;
+
+      if (Paddle) {
+        // ✅ FORCE SANDBOX MODE (THIS IS THE MISSING LINE)
+        Paddle.Environment.set("sandbox");
+
+        // ✅ Initialize
+        Paddle.Initialize({
           token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
         });
-        console.log("✅ Paddle Initialized");
+
+        console.log("✅ Paddle Initialized (Sandbox)");
       }
     };
 

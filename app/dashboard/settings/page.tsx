@@ -198,12 +198,39 @@ const handleCancel = async () => {
   }
 };
 
-  const handleCheckout = async () => {
+ const handleCheckout = async () => {
+  try {
     const res = await fetch("/api/payments/checkout", { method: "POST" });
     const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    else alert("Failed to create checkout session.");
-  };
+
+    if (!data?.priceId) {
+      alert("Checkout failed");
+      return;
+    }
+
+    const Paddle = (window as any).Paddle;
+
+    if (!Paddle) {
+      alert("Paddle not loaded");
+      return;
+    }
+
+    Paddle.Checkout.open({
+      items: [
+        {
+          priceId: data.priceId,
+          quantity: 1,
+        },
+      ],
+      customer: data.customer,
+      customData: data.customData,
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Checkout failed");
+  }
+};
 
 
   const effectiveStatus = localStatus ?? status;

@@ -5,8 +5,9 @@ import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   try {
-    // ── 1. Verify the calling user is authenticated ──────────
+    // ── 1. Verify authenticated user ──────────────────────────
     const cookieStore = await cookies();
+
     const supabaseAuth = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -21,13 +22,18 @@ export async function POST(req: Request) {
       }
     );
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ── 2. Look up their subscription using their verified ID ─
+    const userId = user.id;
+
+    // ── 2. Fetch user's subscription from DB ───────────────────
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -36,7 +42,7 @@ export async function POST(req: Request) {
     const { data: userData, error: dbError } = await supabaseAdmin
       .from("users")
       .select("paddle_subscription_id, subscription_status")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     if (dbError || !userData?.paddle_subscription_id) {
@@ -55,14 +61,16 @@ export async function POST(req: Request) {
 
     const subscriptionId = userData.paddle_subscription_id;
 
-    // ── 3. Cancel via Paddle ───────────────────────────────────
-    // Sandbox: key must start with test_
-    // Live:    key must be from live dashboard
-    // Both:    key needs subscription:write permission
-    const paddleBase = process.env.NODE_ENV === "production"
-      ? "https://api.paddle.com"
-      : "https://sandbox-api.paddle.com";
+    // ── 3. Paddle base URL (correct env handling) ──────────────
+    const paddleBase =
+      process.env.PADDLE_ENV === "live"
+        ? "https://api.paddle.com"
+        : "https://sandbox-api.paddle.com";
 
+    console.log("🌍 Paddle Base:", paddleBase);
+    console.log("🆔 Subscription:", subscriptionId);
+
+    // ── 4. Call Paddle cancel API ──────────────────────────────
     const res = await fetch(
       `${paddleBase}/subscriptions/${subscriptionId}/cancel`,
       {
@@ -78,22 +86,18 @@ export async function POST(req: Request) {
     );
 
     const result = await res.json();
+    console.log("📦 Paddle cancel response:", result);
 
     if (!res.ok) {
-      console.error("❌ Paddle cancel failed:", JSON.stringify(result));
+      console.error("❌ Paddle cancel failed:", result);
       return NextResponse.json(
-        { error: result?.error?.detail ?? "Cancel failed" },
-        { status: res.status }
+        { error: "Cancel failed", details: result },
+        { status: 500 }
       );
     }
 
-    // ── 4. Optimistic DB update ────────────────────────────────
-    // Webhook will confirm this later via subscription.updated
-    // We update here for immediate UI feedback only
-    await supabaseAdmin
-      .from("users")
-      .update({ subscription_status: "canceling" })
-      .eq("id", user.id);
+    // ── 5. Do NOT update DB here ───────────────────────────────
+    // Webhook handles all updates
 
     return NextResponse.json({ success: true });
 

@@ -85,13 +85,17 @@ export async function POST(req: Request) {
 
     // 🔄 PLAN OR STATUS CHANGE
     else if (type === "subscription.updated") {
-      updateData = {
-        plan: planName,
-        subscription_status: data.status,
-      };
+  const isCancelScheduled = data?.scheduled_change?.action === "cancel";
 
-      console.log("🔄 Subscription updated:", updateData);
-    }
+  updateData = {
+    plan: planName,
+    subscription_status: isCancelScheduled
+      ? "canceling"
+      : data.status,
+  };
+
+  console.log("🔄 Subscription updated:", updateData);
+}
 
     // ❌ CANCELLED
     else if (type === "subscription.canceled") {

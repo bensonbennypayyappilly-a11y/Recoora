@@ -3,13 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req: Request) {
   try {
-    const { subscriptionId, userId } = await req.json();
+    const { userId } = await req.json();
 
-    if (!subscriptionId || !userId) {
-      return NextResponse.json(
-        { error: "Missing data" },
-        { status: 400 }
-      );
+    if (!userId) {
+      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
     }
 
     const supabase = createClient(
@@ -17,30 +14,22 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // =========================
-    // 🔐 VERIFY OWNERSHIP
-    // =========================
-    const { data: user, error: fetchError } = await supabase
+    // 🔐 Get user's subscription
+    const { data: user, error } = await supabase
       .from("users")
       .select("paddle_subscription_id")
       .eq("id", userId)
       .single();
 
-    if (fetchError || !user) {
-      console.error("❌ User fetch failed:", fetchError);
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (error || !user?.paddle_subscription_id) {
+      return NextResponse.json({ error: "No subscription found" }, { status: 404 });
     }
 
-    if (user.paddle_subscription_id !== subscriptionId) {
-      console.error("🚨 Unauthorized cancel attempt");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    const subscriptionId = user.paddle_subscription_id;
 
-    console.log("✅ Ownership verified");
+    console.log("🔍 Canceling subscription:", subscriptionId);
 
-    // =========================
-    // 🔥 CANCEL SUBSCRIPTION (PADDLE)
-    // =========================
+    // ✅ CORRECT PADDLE CALL
     const res = await fetch(
       `https://api.paddle.com/subscriptions/${subscriptionId}/cancel`,
       {
@@ -49,6 +38,9 @@ export async function POST(req: Request) {
           Authorization: `Bearer ${process.env.PADDLE_API_KEY}`,
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          effective_from: "next_billing_period",
+        }),
       }
     );
 
@@ -56,15 +48,17 @@ export async function POST(req: Request) {
     console.log("📦 Paddle response:", result);
 
     if (!res.ok) {
-      console.error("❌ Paddle cancel failed:", result);
+      console.error("❌ Paddle error:", result);
       return NextResponse.json({ error: "Cancel failed" }, { status: 500 });
     }
 
-    // =========================
-    // ⚠️ IMPORTANT NOTE
-    // =========================
-    // DO NOT update DB here.
-    // Paddle webhook (subscription.canceled) will update DB.
+    // ⚠️ Optional UX update (recommended)
+    await supabase
+      .from("users")
+      .update({
+        subscription_status: "canceling",
+      })
+      .eq("id", userId);
 
     return NextResponse.json({ success: true });
 

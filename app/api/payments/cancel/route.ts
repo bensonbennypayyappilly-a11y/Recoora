@@ -31,18 +31,18 @@ export async function POST(req: Request) {
 
     // ✅ CORRECT PADDLE CALL
     const res = await fetch(
-      `https://api.paddle.com/subscriptions/${subscriptionId}/cancel`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.PADDLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          effective_from: "next_billing_period",
-        }),
-      }
-    );
+  `https://sandbox-api.paddle.com/subscriptions/${subscriptionId}/cancel`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.PADDLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      effective_from: "next_billing_period",
+    }),
+  }
+);
 
     const result = await res.json();
     console.log("📦 Paddle response:", result);

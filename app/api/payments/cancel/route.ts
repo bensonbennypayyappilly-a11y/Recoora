@@ -31,6 +31,7 @@ export async function POST(req: Request) {
 
     // ✅ CORRECT PADDLE CALL
     const res = await fetch(
+     
   `https://sandbox-api.paddle.com/subscriptions/${subscriptionId}/cancel`,
   {
     method: "POST",
@@ -65,5 +66,4 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("❌ Cancel API crash:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
-}
+  }}

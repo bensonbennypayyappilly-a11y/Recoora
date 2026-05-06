@@ -15,7 +15,9 @@ export async function POST(req: Request) {
 
     const rawBody = await req.text();
 
-    // ===== VERIFY SIGNATURE =====
+    // =========================
+    // 🔐 VERIFY SIGNATURE
+    // =========================
     const parts = Object.fromEntries(
       signatureHeader.split(";").map((p) => p.split("="))
     );
@@ -40,7 +42,9 @@ export async function POST(req: Request) {
       return new NextResponse("Invalid signature", { status: 401 });
     }
 
-    // ===== PARSE EVENT =====
+    // =========================
+    // 📦 PARSE EVENT
+    // =========================
     const event = JSON.parse(rawBody);
     const type = event.event_type;
     const data = event.data;
@@ -48,7 +52,7 @@ export async function POST(req: Request) {
     const userId = data?.custom_data?.user_id;
 
     console.log("📩 Event:", type);
-    console.log("👤 User:", userId);
+    console.log("👤 User ID:", userId);
 
     if (!userId) {
       console.warn("⚠️ Missing user_id");
@@ -60,77 +64,91 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // =========================
+    // 🧠 BUILD UPDATE DATA
+    // =========================
     let updateData: any = {};
 
-    // =========================
-    // ✅ PRIMARY SOURCE OF TRUTH
-    // =========================
+    const planName = data?.items?.[0]?.product?.name || null;
+
+    // ✅ MAIN EVENT (PRIMARY SOURCE)
     if (type === "subscription.created") {
       updateData = {
-        subscription_id: data.id,
-        customer_id: data.customer_id,
-        status: data.status, // active
-        plan: data.items?.[0]?.price?.id,
+        paddle_subscription_id: data.id,
+        paddle_customer_id: data.customer_id,
+        plan: planName, // ✅ FIXED (product.name)
+        subscription_status: data.status || "active",
       };
 
-      console.log("🆕 Creating subscription:", updateData);
+      console.log("🆕 Subscription created:", updateData);
     }
 
-    // =========================
-    // 🔄 STATUS CHANGES
-    // =========================
-    if (type === "subscription.updated") {
+    // 🔄 PLAN OR STATUS CHANGE
+    else if (type === "subscription.updated") {
       updateData = {
-        status: data.status,
-        plan: data.items?.[0]?.price?.id,
+        plan: planName,
+        subscription_status: data.status,
       };
 
       console.log("🔄 Subscription updated:", updateData);
     }
 
-    if (type === "subscription.canceled") {
+    // ❌ CANCELLED
+    else if (type === "subscription.canceled") {
       updateData = {
-        status: "canceled",
+        subscription_status: "canceled",
       };
 
       console.log("🚨 Subscription canceled");
     }
 
-    // =========================
-    // 💳 PAYMENT FAILURE
-    // =========================
-    if (type === "transaction.payment_failed") {
+    // 💳 PAYMENT FAILED
+    else if (type === "transaction.payment_failed") {
       updateData = {
-        status: "past_due",
+        subscription_status: "past_due",
       };
 
       console.log("❌ Payment failed");
     }
 
-    // =========================
-    // ❌ IGNORE THIS (IMPORTANT)
-    // =========================
-    if (type === "transaction.completed") {
+    // 🚫 IGNORE DUPLICATE EVENT
+    else if (type === "transaction.completed") {
       console.log("⚠️ Ignored transaction.completed");
       return NextResponse.json({ received: true });
     }
 
+    // 🚫 Ignore everything else
+    else {
+      console.log("⚠️ Ignored event:", type);
+      return NextResponse.json({ received: true });
+    }
+
+    // =========================
+    // 🧪 DEBUG USER EXISTS
+    // =========================
+    const { data: existingUser, error: fetchError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    console.log("🔍 Existing user:", existingUser);
+    console.log("❌ Fetch error:", fetchError);
+
     // =========================
     // 🚀 UPDATE DB
     // =========================
-    if (Object.keys(updateData).length > 0) {
-      const { data: updated, error } = await supabase
-        .from("users") // ⚠️ confirm your table
-        .update(updateData)
-        .eq("id", userId) // ⚠️ confirm column
-        .select();
+    console.log("🧠 Updating user:", userId);
+    console.log("📝 Payload:", updateData);
 
-      if (error) {
-        console.error("❌ DB Error:", error);
-      } else {
-        console.log("✅ DB Updated:", updated);
-      }
-    }
+    const { data: updated, error } = await supabase
+      .from("users")
+      .update(updateData)
+      .eq("id", userId)
+      .select();
+
+    console.log("📊 Rows updated:", updated?.length);
+    console.log("❌ Update error:", error);
 
     return NextResponse.json({ received: true });
 

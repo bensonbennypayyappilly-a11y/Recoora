@@ -34,20 +34,49 @@ export async function proxy(req: NextRequest) {
     }
   );
 
+  
+
   const { data: { session } } = await supabase.auth.getSession();
 
+
+  let userExists = false;
+
+if (session) {
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", session.user.id)
+    .single();
+
+  userExists = !!userRow;
+}
+
   // Protect dashboard routes
-  if (!session && pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
+  // ❌ No session → redirect
+if (!session && pathname.startsWith("/dashboard")) {
+  return NextResponse.redirect(new URL("/login", req.url));
+}
+
+// ❌ Session exists BUT user deleted from DB → force logout + redirect
+if (session && !userExists && pathname.startsWith("/dashboard")) {
+  const redirect = NextResponse.redirect(new URL("/login", req.url));
+
+  // clear Supabase auth cookies
+  redirect.cookies.delete("sb-access-token");
+  redirect.cookies.delete("sb-refresh-token");
+
+  return redirect;
+}
 
   // Redirect authenticated users away from login/signup
-  if (
-    session &&
-    (pathname.startsWith("/login") || pathname.startsWith("/signup"))
-  ) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
+  // Redirect ONLY if valid user exists in DB
+if (
+  session &&
+  userExists &&
+  (pathname.startsWith("/login") || pathname.startsWith("/signup"))
+) {
+  return NextResponse.redirect(new URL("/dashboard", req.url));
+}
 
   return res;
 }

@@ -73,18 +73,21 @@ export async function POST(req: Request) {
 
     // ✅ MAIN EVENT (PRIMARY SOURCE)
     if (type === "subscription.created") {
-      updateData = {
-        paddle_subscription_id: data.id,
-        paddle_customer_id: data.customer_id,
-        plan: planName, // ✅ FIXED (product.name)
-        subscription_status: data.status || "active",
-      };
+  updateData = {
+    paddle_subscription_id: data.id,
+    paddle_customer_id: data.customer_id,
+    plan: planName,
+    subscription_status: data.status || "active",
 
-      console.log("🆕 Subscription created:", updateData);
-    }
+    // ✅ ADD THIS
+    current_period_end: data?.current_billing_period?.ends_at || null,
+  };
+
+  console.log("🆕 Subscription created:", updateData);
+}
 
     // 🔄 PLAN OR STATUS CHANGE
-    else if (type === "subscription.updated") {
+   else if (type === "subscription.updated") {
   const isCancelScheduled = data?.scheduled_change?.action === "cancel";
 
   updateData = {
@@ -92,6 +95,9 @@ export async function POST(req: Request) {
     subscription_status: isCancelScheduled
       ? "canceling"
       : data.status,
+
+    // ✅ ADD THIS
+    current_period_end: data?.current_billing_period?.ends_at || null,
   };
 
   console.log("🔄 Subscription updated:", updateData);
@@ -99,12 +105,13 @@ export async function POST(req: Request) {
 
     // ❌ CANCELLED
     else if (type === "subscription.canceled") {
-      updateData = {
-        subscription_status: "canceled",
-      };
+  updateData = {
+    subscription_status: "canceled",
+    current_period_end: null, // optional cleanup
+  };
 
-      console.log("🚨 Subscription canceled");
-    }
+  console.log("🚨 Subscription canceled");
+}
 
     // 💳 PAYMENT FAILED
     else if (type === "transaction.payment_failed") {

@@ -108,9 +108,17 @@ function AccountSection() {
 </div>
 
 {/* ✅ NEW PERIOD END DISPLAY */}
+{/* ✅ Trial end */}
+{plan === "trial" && status === "inactive" && periodEnd && (
+  <div className="text-xs text-yellow-400 mt-1">
+    Trial ends on: {formatDate(periodEnd)}
+  </div>
+)}
+
+{/* ✅ Canceling subscription */}
 {status === "canceling" && periodEnd && (
   <div className="text-xs text-yellow-400 mt-1">
-    Access until: {new Date(periodEnd).toLocaleDateString()}
+    Access until: {formatDate(periodEnd)}
   </div>
 )}
       </div>
@@ -261,11 +269,17 @@ const isCanceledEffective = effectiveStatus === "canceled";
             </div>
 
             {/* Period end label — changes text based on state */}
-            {isCancelingEffective && periodEnd && (
+            {/* ✅ Trial */}
+{plan === "trial" && status === "inactive" && periodEnd && (
   <div className="text-xs text-zinc-500 mt-2">
-    {isCancelingEffective
-      ? `Access until: ${formatDateTime(periodEnd)}`
-      : `Next billing: ${formatDateTime(periodEnd)}`}
+    Trial ends: {formatDateTime(periodEnd)}
+  </div>
+)}
+
+{/* ✅ Canceling */}
+{isCancelingEffective && periodEnd && (
+  <div className="text-xs text-zinc-500 mt-2">
+    Access until: {formatDateTime(periodEnd)}
   </div>
 )}
           </div>

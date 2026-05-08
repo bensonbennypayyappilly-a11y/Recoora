@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
+import WaitlistModal from "@/components/WaitlistModal";
 
 interface Feature {
   icon: React.ReactNode;
@@ -25,6 +26,7 @@ export default function LandingPage() {
   const [scrolled, setScrolled] = useState<boolean>(false);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set());
+  const [showWaitlist, setShowWaitlist] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -764,12 +766,12 @@ export default function LandingPage() {
                 </p>
               </div>
 
-              <a
-                href="/login"
-                className="block w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3.5 rounded-xl text-center text-sm transition-all duration-200 glow-green hover:shadow-emerald-500/30 hover:shadow-lg"
-              >
-                Join the waitlist →
-              </a>
+              <button
+  onClick={() => setShowWaitlist(true)}
+  className="block w-full bg-emerald-500 text-white py-3.5 rounded-xl text-sm"
+>
+  Join the waitlist →
+</button>
               <p className="text-xs text-zinc-400 text-center mt-3">Lock in early access pricing</p>
             </div>
 
@@ -876,6 +878,11 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {showWaitlist && (
+  <WaitlistModal onClose={() => setShowWaitlist(false)} />
+)}
+
     </div>
   );
 }

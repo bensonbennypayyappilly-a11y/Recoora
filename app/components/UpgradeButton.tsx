@@ -5,6 +5,7 @@
 {/* Upgrade button */}
 
 import { useState } from "react";
+import WaitlistModal from "@/components/WaitlistModal";
 
 
 type Plan   = "trial" | "starter" | "Growth" | null;
@@ -33,6 +34,7 @@ export default function UpgradeButton({
 
 const [localStatus, setLocalStatus] = useState<Status | null>(null);
 const effectiveStatus = localStatus ?? status;
+const [showWaitlist, setShowWaitlist] = useState(false);
 
   // ── Redirect to Stripe Checkout ──────────────────────────
 const goToCheckout = async () => {
@@ -68,15 +70,19 @@ const goToCheckout = async () => {
   // ────────────────────────────────────────────────────────
   if (plan === "starter" && effectiveStatus === "active" && !cancelAtPeriodEnd) {
   return (
-    
-      <button
-        onClick={() => alert("🚧Growth plan coming soon. Stay tuned!")}
-        className="bg-emerald-500 hover:bg-emerald-400 text-black px-5 py-2.5 rounded-xl text-sm font-semibold"
-      >
-        Upgrade to Growth
-      </button>
-   
-  );
+  <>
+    <button
+      onClick={() => setShowWaitlist(true)}
+      className="bg-emerald-500 text-black px-5 py-2.5 rounded-xl text-sm font-semibold"
+    >
+      Join Growth Waitlist
+    </button>
+
+    {showWaitlist && (
+      <WaitlistModal onClose={() => setShowWaitlist(false)} />
+    )}
+  </>
+);
 }
 
   // ────────────────────────────────────────────────────────

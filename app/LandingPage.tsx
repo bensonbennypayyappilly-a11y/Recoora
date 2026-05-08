@@ -735,7 +735,7 @@ export default function LandingPage() {
               <div className="mb-6">
                 <div className="text-emerald-600 text-xs font-semibold uppercase tracking-wider mb-3 font-display">Growth</div>
                 <div className="flex items-end gap-1 mb-1">
-                  <span className="font-display font-bold text-4xl text-zinc-900">$29</span>
+                  <span className="font-display font-bold text-4xl text-zinc-900">$33</span>
                   <span className="text-zinc-400 mb-1.5 text-sm">/month</span>
                 </div>
                 <p className="text-zinc-400 text-xs mt-1">Everything in Starter + AI recovery emails</p>

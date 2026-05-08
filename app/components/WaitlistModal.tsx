@@ -68,7 +68,7 @@ export default function WaitlistModal({ onClose }: { onClose: () => void }) {
 
         {/* SUGGESTION */}
         <textarea
-          placeholder="What features do you want? (optional, max 100 chars)"
+          placeholder="What features do you want? (optional)"
           className="w-full border px-3 py-2 rounded-lg mb-3"
           value={suggestion}
           maxLength={100}

@@ -18,14 +18,19 @@ export default function PaddleProvider() {
 
       if (Paddle) {
         // ✅ FORCE SANDBOX MODE (THIS IS THE MISSING LINE)
-        Paddle.Environment.set("sandbox");
+       const env =
+  process.env.NEXT_PUBLIC_PADDLE_ENV === "live"
+    ? "production"
+    : "sandbox";
+
+Paddle.Environment.set(env);
 
         // ✅ Initialize
         Paddle.Initialize({
           token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
         });
 
-        console.log("✅ Paddle Initialized (Sandbox)");
+       console.log(`✅ Paddle Initialized (${env})`);
       }
     };
 
